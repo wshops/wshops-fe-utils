@@ -1,46 +1,19 @@
-# vite-vanilla-ts-lib-starter
+# wshops-fe-utils
 
-The starter is built on top of Vite 2.x and prepared for writing libraries in TypeScript. It generates a hybrid package - both support for CommonJS and ESM modules.
+Wshops Shopfront development toolkit. This library is written in TypeScript. It generates a hybrid package - both support for CommonJS and ESM modules.
 
 ## Features
 
+- md5 encryption
+- base64 encode
+- api request utils
 - Hybrid support - CommonJS and ESM modules
 - IIFE bundle for direct browser support without bundler
 - Typings bundle
-- ESLint - scripts linter
-- Stylelint - styles linter
-- Prettier - formatter
-- Jest - test framework
-- Husky + lint-staged - pre-commit git hook set up for formatting
 
-## GitHub Template
+## DEV
 
-This is a template repo. Click the green [Use this template](https://github.com/kbysiec/vite-vanilla-ts-lib-starter/generate) button to get started.
-
-## Clone to local
-
-If you prefer to do it manually with the cleaner git history
-
-```bash
-git clone https://github.com/kbysiec/vite-vanilla-ts-lib-starter.git
-cd vite-vanilla-ts-lib-starter
-npm i
-```
-
-## Checklist
-
-When you use this template, update the following:
-
-- Remove `.git` directory and run `git init` to clean up the history
-- Change the name in `package.json` - it will be the name of the IIFE bundle global variable and bundle files name (`.cjs`, `.mjs`, `.iife.js`, `d.ts`)
-- Change the author name in `LICENSE`
-- Clean up the `README` and `CHANGELOG` files
-
-And, enjoy :)
-
-## Usage
-
-The starter contains the following scripts:
+The project contains the following scripts:
 
 - `dev` - starts dev server
 - `build` - generates the following bundles: CommonJS (`.cjs`) ESM (`.mjs`) and IIFE (`.iife.js`). The name of bundle is automatically taked from `package.json` name property
@@ -52,9 +25,3 @@ The starter contains the following scripts:
 - `format:styles` - format `.cs` and `.scss` files with stylelint
 - `format` - format all with prettier and stylelint
 - `prepare` - script for setting up husky pre-commit hook
-
-## Acknowledgment
-
-If you found it useful somehow, I would be grateful if you could leave a star in the project's GitHub repository.
-
-Thank you.
