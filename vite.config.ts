@@ -1,6 +1,8 @@
 import path from "path";
 import { defineConfig } from "vite";
 import packageJson from "./package.json";
+import banner from 'vite-plugin-banner'
+import dts from 'vite-plugin-dts'
 
 const getPackageName = () => {
   return packageJson.name;
@@ -15,13 +17,17 @@ const getPackageNameCamelCase = () => {
 };
 
 const fileName = {
-  es: `${getPackageName()}.mjs`,
-  cjs: `${getPackageName()}.cjs`,
-  iife: `${getPackageName()}.iife.js`,
+  es: `wshop.mjs`,
+  cjs: `wshop.cjs`,
+  iife: `wshop.iife.js`,
 };
 
 module.exports = defineConfig({
   base: "./",
+  plugins:[
+    banner(`/**\n * name: ${packageJson.name}\n * version: v${packageJson.version}\n * description: ${packageJson.description}\n * author: ${packageJson.author}\n * homepage: ${packageJson.homepage}\n */`),
+    dts()
+  ],
   build: {
     lib: {
       entry: path.resolve(__dirname, "src/index.ts"),
