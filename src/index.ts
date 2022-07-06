@@ -1,7 +1,7 @@
 import { FormValidationFeedbackHandlers } from './validation/types'
 import ApiUtils, { ApiRequestFeedbackHandlers } from './api'
 import Message from './message'
-import Validator from './validation'
+import Validation from './validation'
 import { Md5 } from 'ts-md5'
 import CryptoJS from 'crypto-js'
 import { Base64 } from 'js-base64'
@@ -50,7 +50,7 @@ export default class WshopUtils {
 
   private readonly _message: Message
   private readonly _api: ApiUtils
-  private readonly _validator: Validator
+  private readonly _validator: Validation
 
   constructor (config?: WshopUtilsConfiguration) {
     if (config !== undefined) {
@@ -65,7 +65,7 @@ export default class WshopUtils {
     }
     this._message = new Message()
     this._api = new ApiUtils(this._config.feedbacks!.apiFeedbacks!, `/api/${config?.apiVersion === undefined || config?.apiVersion === '' ? 'v1' : config?.apiVersion}`)
-    this._validator = new Validator(this._config.feedbacks!.formValidationFeedbacks!)
+    this._validator = new Validation(this._config.feedbacks!.formValidationFeedbacks!)
     console.debug('wshop frontend utils loaded.')
   }
 
@@ -85,7 +85,7 @@ export default class WshopUtils {
     return this._api
   }
 
-  public vd (withAsync?: boolean): Validator {
+  public vd (withAsync?: boolean): Validation {
     return withAsync === undefined || withAsync ? this._validator.withAsync() : this._validator.noAsync()
   }
 
