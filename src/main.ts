@@ -1,7 +1,7 @@
 import './message.less'
 import Message from './message'
-import Validator from './validator'
-import { InputRules } from './validator/types'
+import Validator from './validation'
+import { InputRules } from './validation/types'
 
 const msg = new Message()
 document.getElementById('msg-test')!.addEventListener('click', () => {

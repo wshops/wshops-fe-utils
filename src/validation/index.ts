@@ -1,10 +1,10 @@
 import { FormValidationFeedbackHandlers, FormValidationResult, InputRules, Rule } from './types'
 import RulesSet from './rules'
 
-export default class Validator {
+export default class Validation {
   private readonly _feedbackHandlers: FormValidationFeedbackHandlers
   private initialized: boolean = false
-  private readonly _withAsync: boolean
+  private _withAsync: boolean
   private validateResult: boolean
   private inputRules: InputRules[] = []
 
@@ -18,7 +18,7 @@ export default class Validator {
     this.validateResult = false
   }
 
-  init (inputRules: InputRules[]): Validator {
+  public init (inputRules: InputRules[]): Validation {
     this.inputRules = inputRules
     if (this._withAsync) {
       for (const inputRule of inputRules) {
@@ -34,7 +34,17 @@ export default class Validator {
     return this
   }
 
-  validate (): Validator {
+  public withAsync (): Validation {
+    this._withAsync = true
+    return this
+  }
+
+  public noAsync (): Validation {
+    this._withAsync = false
+    return this
+  }
+
+  public validate (): Validation {
     if (!this.initialized) {
       console.error('请先执行init()函数')
       return this
@@ -45,7 +55,7 @@ export default class Validator {
     return this
   }
 
-  getResult (): boolean {
+  public getResult (): boolean {
     return this.validateResult
   }
 
@@ -84,7 +94,7 @@ export default class Validator {
           }
         }
       } else {
-        //use custom validator
+        //use custom validation
         if (!rule.customValidator!((<HTMLInputElement>element).value)) {
           resultResponse.isValid = false
           resultResponse.message = rule.invalidMessage
