@@ -18,7 +18,8 @@ const getPackageNameCamelCase = () => {
 const fileName = {
   es: `wshop.mjs`,
   cjs: `wshop.cjs`,
-  iife: `wshop.iife.js`
+  iife: `wshop.iife.js`,
+  umd: `wshop.umd.js`
 }
 
 module.exports = defineConfig({
@@ -30,7 +31,7 @@ module.exports = defineConfig({
     lib: {
       entry: path.resolve(__dirname, 'src/index.ts'),
       name: getPackageNameCamelCase(),
-      formats: ['es', 'cjs', 'iife'],
+      formats: ['es', 'cjs', 'iife', 'umd'],
       fileName: (format) => {
         // @ts-ignore
         return fileName[format]
