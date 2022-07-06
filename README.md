@@ -1,6 +1,7 @@
 # wshops-fe-utils
 
-Wshops Shopfront development toolkit. This library is written in TypeScript. It generates a hybrid package - both support for CommonJS and ESM modules.
+Wshops Shopfront development toolkit. This library is written in TypeScript. It generates a hybrid package - both
+support for CommonJS and ESM modules.
 
 ## Features
 
@@ -16,7 +17,8 @@ Wshops Shopfront development toolkit. This library is written in TypeScript. It 
 The project contains the following scripts:
 
 - `dev` - starts dev server
-- `build` - generates the following bundles: CommonJS (`.cjs`) ESM (`.mjs`) and IIFE (`.iife.js`). The name of bundle is automatically taked from `package.json` name property
+- `build` - generates the following bundles: CommonJS (`.cjs`) ESM (`.mjs`) and IIFE (`.iife.js`). The name of bundle is
+  automatically taked from `package.json` name property
 - `test` - starts jest and runs all tests
 - `test:coverage` - starts jest and run all tests with code coverage report
 - `lint:scripts` - lint `.ts` files with eslint
