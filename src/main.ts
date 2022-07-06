@@ -1,5 +1,7 @@
 import './message.less'
-import Message from './Message'
+import Message from './message'
+import Validator from './validator'
+import { InputRules } from './validator/types'
 
 const msg = new Message()
 document.getElementById('msg-test')!.addEventListener('click', () => {
@@ -18,4 +20,44 @@ document.getElementById('msg-test')!.addEventListener('click', () => {
     })
   })
 })
+
+const v = new Validator({
+  onValid: result => {
+    msg.success(`${result.inputElement.textContent} is (${result.isValid}), msg: ${result.message}`)
+  },
+  onInvalid: result => {
+    msg.warn(`${result.inputElement.textContent} is (${result.isValid}), msg: ${result.message}`)
+  }
+}, true)
+
+const validationRules: Array<InputRules> = [
+  {
+    element: document.getElementById('username')!,
+    rules: [
+      {
+        validatorName: 'required',
+        invalidMessage: 'username is required'
+      },
+      {
+        validatorName: 'alphanum',
+        invalidMessage: 'wrong username format'
+      }
+    ]
+  },
+  {
+    element: document.getElementById('password')!,
+    rules: [
+      {
+        validatorName: 'required',
+        invalidMessage: 'password is required'
+      },
+      {
+        validatorName: 'upper',
+        invalidMessage: 'wrong password format'
+      }
+    ]
+  }
+]
+
+v.init(validationRules)
 
