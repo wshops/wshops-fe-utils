@@ -41,6 +41,10 @@ export default class ApiUtils {
     return this._apisauceInstance
   }
 
+  public setHeader (key: string, value: string): void {
+    this._apisauceInstance.setHeader(key, value)
+  }
+
   public async get (url: string, data?: object): Promise<ApiRequestCallback> {
     const res = await this._apisauceInstance.get<AscApiResponse>(url, data)
     return this._processResponse(res)
@@ -51,8 +55,23 @@ export default class ApiUtils {
     return this._processResponse(res)
   }
 
+  public async put (url: string, data?: object): Promise<ApiRequestCallback> {
+    const res = await this._apisauceInstance.put<AscApiResponse>(url, data)
+    return this._processResponse(res)
+  }
+
+  public async del (url: string, data?: object): Promise<ApiRequestCallback> {
+    const res = await this._apisauceInstance.delete<AscApiResponse>(url, data)
+    return this._processResponse(res)
+  }
+
+  public async patch (url: string, data?: object): Promise<ApiRequestCallback> {
+    const res = await this._apisauceInstance.patch<AscApiResponse>(url, data)
+    return this._processResponse(res)
+  }
+
   private _processResponse (r: ApiResponse<AscApiResponse>): ApiRequestCallback {
-    if (r === undefined) {
+    if (r === undefined || r.status === undefined || r.status === null) {
       this._feedbackHandlers.onError('an unknown error occurred，please contact support.')
       return {
         isRequestSucceed: false,
@@ -78,7 +97,15 @@ export default class ApiUtils {
       }
     }
 
-    if (r.data.ret === -5) {
+    if (r.status === 200) {
+      return {
+        isRequestSucceed: true,
+        feedbackShowed: false,
+        resultData: r.data
+      }
+    }
+
+    if (r.status === 401) {
       this._feedbackHandlers.onUnAuthorized('please login.')
       return {
         isRequestSucceed: true,
@@ -87,25 +114,15 @@ export default class ApiUtils {
       }
     }
 
-    if (r.data.ret === -4) {
-      this._feedbackHandlers.onUnAuthorized('please login.')
-      return {
-        isRequestSucceed: true,
-        feedbackShowed: true,
-        resultData: r.data
+    if (r.status === 400) {
+      if (r.data.ret === -1) {
+        this._feedbackHandlers.onWarning(r.data.msg !== undefined ? r.data.msg : '')
+        return {
+          isRequestSucceed: true,
+          feedbackShowed: true,
+          resultData: r.data
+        }
       }
-    }
-
-    if (r.data.ret === -1) {
-      this._feedbackHandlers.onWarning(r.data.msg !== undefined ? r.data.msg : '')
-      return {
-        isRequestSucceed: true,
-        feedbackShowed: true,
-        resultData: r.data
-      }
-    }
-
-    if (r.data.ret === -10) {
       this._feedbackHandlers.onError(r.data.msg !== undefined ? r.data.msg : '')
       return {
         isRequestSucceed: true,
@@ -114,7 +131,7 @@ export default class ApiUtils {
       }
     }
 
-    if (r.data.ret === -50) {
+    if (r.status === 500) {
       this._feedbackHandlers.onError('system busy, please try again later.')
       console.error(r.problem)
       return {
@@ -124,7 +141,7 @@ export default class ApiUtils {
     }
 
     return {
-      isRequestSucceed: true,
+      isRequestSucceed: false,
       feedbackShowed: false,
       resultData: r.data
     }
