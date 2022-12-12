@@ -3,7 +3,10 @@
   "author": "Tony An <anxuanzi@w-shops.com>",
   "homepage": "https://www.w-shops.com/",
   "description": "Wshops Shopfront development toolkit",
-  "private": true,
+  "private": false,
+  "repository": {
+    "url": "https://github.com/wshops/wshops-fe-utils.git"
+  },
   "version": "0.0.0",
   "main": "./dist/wshop.cjs",
   "module": "./dist/wshop.mjs",
