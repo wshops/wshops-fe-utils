@@ -60,4 +60,3 @@ const validationRules: Array<InputRules> = [
 ]
 
 v.init(validationRules)
-

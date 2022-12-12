@@ -5,6 +5,7 @@ import Validation from './validation'
 import { Md5 } from 'ts-md5'
 import CryptoJS from 'crypto-js'
 import { Base64 } from 'js-base64'
+import Dsync from './dsync'
 
 interface FeedbackHandlers {
   apiFeedbacks?: ApiRequestFeedbackHandlers,
@@ -52,6 +53,8 @@ export default class WshopUtils {
   private readonly _api: ApiUtils
   private readonly _validator: Validation
 
+  private readonly _dsync: Dsync
+
   constructor (config?: WshopUtilsConfiguration) {
     if (config !== undefined) {
       if (config.feedbacks !== undefined) {
@@ -66,6 +69,7 @@ export default class WshopUtils {
     this._message = new Message()
     this._api = new ApiUtils(this._config.feedbacks!.apiFeedbacks!, `/api/${config?.apiVersion === undefined || config?.apiVersion === '' ? 'v1' : config?.apiVersion}`)
     this._validator = new Validation(this._config.feedbacks!.formValidationFeedbacks!)
+    this._dsync = new Dsync()
     console.debug('wshop frontend utils loaded.')
   }
 
@@ -103,6 +107,10 @@ export default class WshopUtils {
 
   public base64Decode (str: string): string {
     return Base64.decode(str)
+  }
+
+  public dsync (): Dsync {
+    return this._dsync
   }
 }
 
