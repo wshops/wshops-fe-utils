@@ -2,6 +2,7 @@ import './message.less'
 import Message from './message'
 import Validator from './validation'
 import { InputRules } from './validation/types'
+import WshopUtils from './index'
 
 const msg = new Message()
 document.getElementById('msg-test')!.addEventListener('click', () => {
@@ -60,3 +61,9 @@ const validationRules: Array<InputRules> = [
 ]
 
 v.init(validationRules)
+
+document.getElementById('test-form')!.addEventListener('submit', e => {
+  e.preventDefault()
+  v.validate()
+  alert(JSON.stringify(new WshopUtils().formDataToObject('test-form')))
+})

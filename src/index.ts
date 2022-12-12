@@ -101,6 +101,16 @@ export default class WshopUtils {
     return CryptoJS.SHA256(str).toString()
   }
 
+  public formDataToObject (formId: string): any {
+    const form = document.getElementById(formId) as HTMLFormElement
+    const data = new FormData(form)
+    const obj: any = {}
+    data.forEach((value, key) => {
+      obj[key] = value
+    })
+    return obj
+  }
+
   public base64Encode (str: string): string {
     return Base64.encode(str)
   }
