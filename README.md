@@ -27,6 +27,8 @@ Import the bundled library in your page:
 ```html
 
 <script src="https://cdn.jsdelivr.net/gh/wshops/wshops-fe-utils@1.0.0/dist/wshop.iife.min.js"></script>
+// or
+<script src="https://cdn.jsdelivr.net/gh/wshops/wshops-fe-utils@1.0.0/dist/wshop.umd.min.js"></script>
 ```
 
 Call Instance:
