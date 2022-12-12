@@ -7,41 +7,34 @@ export interface FormValidationResult {
   inputElement: HTMLElement;
   message?: string;
 }
-
 export interface FormValidationFeedbackHandlers {
   onValid: (result: FormValidationResult) => void;
   onInvalid: (result: FormValidationResult) => void;
 }
-
 export interface InputRules {
   element: HTMLElement;
   rules: Array<Rule>;
 }
-
 export interface Rule {
   validatorName?: keyof RegexRules;
   customValidator?: Validator;
   invalidMessage: string;
 }
-
 export type Validator = (value: string) => boolean;
 export type RegexRules = {
   [key: string]: RegExp;
 };
-
 export interface AscApiResponse {
   ret: number | undefined;
   msg?: string;
   data?: object;
 }
-
 export interface ApiRequestCallback {
   isRequestSucceed: boolean;
   feedbackShowed: boolean;
   errorMessage?: string;
   resultData?: AscApiResponse;
 }
-
 export interface ApiRequestFeedbackHandlers {
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -53,7 +46,6 @@ export interface ApiRequestFeedbackHandlers {
 declare class ApiUtils {
   private readonly _apisauceInstance
   private readonly _feedbackHandlers
-  private _processResponse
 
   constructor (feedbackHandlers: ApiRequestFeedbackHandlers, baseUrl?: string);
 
@@ -70,8 +62,9 @@ declare class ApiUtils {
   del (url: string, data?: object): Promise<ApiRequestCallback>;
 
   patch (url: string, data?: object): Promise<ApiRequestCallback>;
-}
 
+  private _processResponse
+}
 export interface MsgOptions {
   type?: 'info' | 'success' | 'warn' | 'error' | 'loading';
   content?: string;
@@ -85,19 +78,6 @@ declare class Message {
   private readonly _prefixClass
   private readonly _topLength
   private readonly _containerId
-  private _message
-  private _showMessage
-  private _closeMessage
-  private _getType
-  private _getContent
-  private _getDurationMs
-  private _isClosable
-  private _initMessageContainer
-  private _getMessageContainer
-  private _generateMessageElement
-  private _addCloseButton
-  private _getIcon
-  private _resetDefaultOptions
 
   constructor (options?: MsgOptions);
 
@@ -112,6 +92,20 @@ declare class Message {
   loading (msg?: string): () => Promise<any>;
 
   reset (): void;
+
+  private _message
+  private _showMessage
+  private _closeMessage
+  private _getType
+  private _getContent
+  private _getDurationMs
+  private _isClosable
+  private _initMessageContainer
+  private _getMessageContainer
+  private _generateMessageElement
+  private _addCloseButton
+  private _getIcon
+  private _resetDefaultOptions
 }
 
 declare class Validation {
@@ -120,7 +114,6 @@ declare class Validation {
   private _withAsync
   private validateResult
   private inputRules
-  private handleValidateField
 
   constructor (feedbackHandlers: FormValidationFeedbackHandlers, withAsync?: boolean);
 
@@ -133,6 +126,8 @@ declare class Validation {
   validate (): Validation;
 
   getResult (): boolean;
+
+  private handleValidateField
 }
 
 declare class Dsync {
@@ -148,17 +143,14 @@ declare class Dsync {
 
   has (key: string): boolean;
 }
-
 export interface FeedbackHandlers {
   apiFeedbacks?: ApiRequestFeedbackHandlers;
   formValidationFeedbacks?: FormValidationFeedbackHandlers;
 }
-
 export interface WshopUtilsConfiguration {
   feedbacks?: FeedbackHandlers;
   apiVersion?: string;
 }
-
 export default class WshopUtils {
   private _config
   private readonly _message
@@ -181,6 +173,8 @@ export default class WshopUtils {
   md5 (str: string): string;
 
   sha256 (str: string): string;
+
+  formDataToObject (formId: string): any;
 
   base64Encode (str: string): string;
 
