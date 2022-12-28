@@ -1,8 +1,8 @@
 {
-  "name": "wshops-fe-utils",
+  "name": "@wshops/utils",
   "author": "Tony An <anxuanzi@w-shops.com>",
   "homepage": "https://www.w-shops.com/",
-  "description": "Wshops Shopfront development toolkit",
+  "description": "Wshops app frontend development toolkit",
   "private": false,
   "repository": {
     "url": "https://github.com/wshops/wshops-fe-utils.git"

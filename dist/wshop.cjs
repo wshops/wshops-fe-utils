@@ -1,7 +1,7 @@
 /**
  * name: wshops-fe-utils
  * version: v1.0.1
- * description: Wshops Shopfront development toolkit
+ * description: Wshops app frontend development toolkit
  * author: Tony An <anxuanzi@w-shops.com>
  * homepage: https://www.w-shops.com/
  */

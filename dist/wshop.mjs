@@ -1,7 +1,7 @@
 /**
  * name: wshops-fe-utils
  * version: v1.0.1
- * description: Wshops Shopfront development toolkit
+ * description: Wshops app frontend development toolkit
  * author: Tony An <anxuanzi@w-shops.com>
  * homepage: https://www.w-shops.com/
  */
@@ -145,6 +145,7 @@ function Qn (a, r, n) {
 function Jn (a) {
   return a.charCodeAt(0) === 65279 && (a = a.slice(1)), a
 }
+
 var t0 = {
   isArray: Xe,
   isArrayBuffer: Ln,
@@ -168,7 +169,7 @@ var t0 = {
   extend: Qn,
   trim: Gn,
   stripBOM: Jn
-}, v0 = t0;
+}, v0 = t0
 
 function Br (a) {
   return encodeURIComponent(a).replace(/%3A/gi, ':').replace(/%24/g, '$').replace(/%2C/gi, ',').replace(/%20/g, '+').replace(/%5B/gi, '[').replace(/%5D/gi, ']')
@@ -487,6 +488,7 @@ function ha (a, r, n) {
     }
   return (n || JSON.stringify)(a)
 }
+
 var U0 = {
   transitional: {
     silentJSONParsing: !0,
@@ -517,7 +519,7 @@ var U0 = {
   validateStatus: function (r) {
     return r >= 200 && r < 300
   }
-};
+}
 U0.headers = {
   common: {
     Accept: 'application/json, text/plain, */*'
@@ -711,7 +713,7 @@ const ya = 'axios', Ca = '0.21.4', wa = 'Promise based HTTP client for the brows
   typings: $a,
   dependencies: Pa,
   bundlesize: Na
-};
+}
 var Zt = Ta, Qe = {};
 ['object', 'boolean', 'number', 'function', 'string', 'symbol'].forEach(function (a, r) {
   Qe[a] = function (e) {
@@ -1527,7 +1529,7 @@ const is = (a, r = 1) => new RegExp(`^(?!.*(${a}).*\\1{${r},}).+$`, 'i'), S0 = (
   linuxfile: /^[^+-./\t\b@#$%*()\[\]][^/\t\b@#$%*()\[\]]{1,254}$/,
   imgurl: S0('https?', 'gif|png|jpg|jpeg|webp|svg'),
   doc: os('pdf|txt|rtf|wps|doc|docx|xls|xlsx|ppt|pptx')
-};
+}
 
 class cs {
   constructor (r, n) {
@@ -1910,13 +1912,13 @@ function L () {
               return new y.HMAC.init(d, b).finalize(v)
             }
           }
-        });
+        })
         var y = p.algo = {}
         return p
-      }(Math);
+      }(Math)
       return n
-    });
-  }(ue)), ue.exports;
+    })
+  }(ue)), ue.exports
 }
 
 var xe = { exports: {} }, Qr
@@ -2013,14 +2015,14 @@ function hs () {
               c[g >>> 1] |= l(p.charCodeAt(g) << 16 - g % 2 * 16)
             return s.create(c, o * 2)
           }
-        };
+        }
 
         function l (p) {
           return p << 8 & 4278255360 | p >>> 8 & 16711935
         }
-      }(), n.enc.Utf16;
-    });
-  }(le)), le.exports;
+      }(), n.enc.Utf16
+    })
+  }(le)), le.exports
 }
 
 var he = { exports: {} }, rt
@@ -2493,11 +2495,11 @@ function cn () {
             return h._hash = this._hash.clone(), h
           },
           blockSize: 1024 / 32
-        });
+        })
         e.SHA512 = s._createHelper(x), e.HmacSHA512 = s._createHmacHelper(x)
-      }(), n.SHA512;
-    });
-  }(me)), me.exports;
+      }(), n.SHA512
+    })
+  }(me)), me.exports
 }
 
 var ye = { exports: {} }, ct
@@ -2629,11 +2631,11 @@ function bs () {
               y[d] = y[d].clone()
             return u
           }
-        });
+        })
         t.SHA3 = l._createHelper(_), t.HmacSHA3 = l._createHmacHelper(_)
-      }(Math), n.SHA3;
-    });
-  }(Ce)), Ce.exports;
+      }(Math), n.SHA3
+    })
+  }(Ce)), Ce.exports
 }
 
 var we = { exports: {} }, ut
@@ -3254,7 +3256,7 @@ function G () {
             var w = m.words[m.sigBytes - 1 >>> 2] & 255
             m.sigBytes -= w
           }
-        };
+        }
         s.BlockCipher = x.extend({
           cfg: x.cfg.extend({
             mode: u,
@@ -3274,7 +3276,7 @@ function G () {
             return this._xformMode == this._ENC_XFORM_MODE ? (w.pad(this._data, this.blockSize), m = this._process(!0)) : (m = this._process(!0), w.unpad(m)), m
           },
           blockSize: 128 / 32
-        });
+        })
         var v = s.CipherParams = i.extend({
           init: function (m) {
             this.mixIn(m)
@@ -3344,10 +3346,10 @@ function G () {
             var q = C.decrypt.call(this, m, w, z.key, k)
             return q
           }
-        });
-      }();
-    });
-  }(Ee)), Ee.exports;
+        })
+      }()
+    })
+  }(Ee)), Ee.exports
 }
 
 var Se = { exports: {} }, vt
@@ -3684,11 +3686,11 @@ function Ds () {
             v[b] = T, v[b + 1] = I, v[b + 2] = W, v[b + 3] = E
           },
           keySize: 256 / 32
-        });
+        })
         e.AES = s._createHelper(d)
-      }(), n.AES;
-    });
-  }(Te)), Te.exports;
+      }(), n.AES
+    })
+  }(Te)), Te.exports
 }
 
 var Le = { exports: {} }, Et
@@ -4379,7 +4381,7 @@ function Os () {
           keySize: 64 / 32,
           ivSize: 64 / 32,
           blockSize: 64 / 32
-        });
+        })
 
         function h (y, d) {
           var v = (this._lBlock >>> y ^ this._rBlock) & d
@@ -4412,9 +4414,9 @@ function Os () {
           blockSize: 64 / 32
         })
         e.TripleDES = i._createHelper(u)
-      }(), n.TripleDES;
-    });
-  }(Le)), Le.exports;
+      }(), n.TripleDES
+    })
+  }(Le)), Le.exports
 }
 
 var Ue = { exports: {} }, St
@@ -4792,7 +4794,7 @@ class Ys {
           }
         }
       }
-    });
+    })
     V(this, '_message')
     V(this, '_api')
     V(this, '_validator')
