@@ -190,5 +190,5 @@ export default class WshopUtils {
 
   dsync (): Dsync;
 }
-
+declare module '@wshops/utils';
 export {}
