@@ -8,10 +8,20 @@
     "url": "https://github.com/wshops/wshops-fe-utils.git"
   },
   "license": "MIT",
-  "version": "1.0.3",
-  "main": "./dist/wshop.cjs",
-  "module": "./dist/wshop.mjs",
+  "version": "1.0.4",
   "packageManager": "yarn@1.22.19",
+  "main": "dist/wshop.cjs",
+  "module": "dist/wshop.mjs",
+  "unpkg": "dist/wshop.iife.js",
+  "jsdelivr": "dist/wshop.iife.js",
+  "types": "dist/wshop.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "exports": {
     ".": {
       "require": "./dist/wshop.cjs",
