@@ -4,10 +4,10 @@ import packageJson from './package.json'
 import banner from 'vite-plugin-banner'
 
 const fileName = {
-  es: `wshop.mjs`,
-  cjs: `wshop.cjs`,
-  iife: `wshop.iife.js`,
-  umd: `wshop.umd.js`
+  es: `index.mjs.js`,
+  cjs: `index.cjs.js`,
+  iife: `index.iife.js`,
+  umd: `index.umd.js`
 }
 
 module.exports = defineConfig({
@@ -16,7 +16,7 @@ module.exports = defineConfig({
     banner(`/**\n * name: wshops-fe-utils\n * version: v${packageJson.version}\n * description: ${packageJson.description}\n * author: ${packageJson.author}\n * homepage: ${packageJson.homepage}\n */`)
   ],
   build: {
-    minify: true,
+    minify: 'esbuild',
     lib: {
       entry: path.resolve(__dirname, 'src/index.ts'),
       name: 'WshopsFrontendUtils',
