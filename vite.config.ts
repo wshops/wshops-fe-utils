@@ -16,7 +16,7 @@ module.exports = defineConfig({
     banner(`/**\n * name: wshops-fe-utils\n * version: v${packageJson.version}\n * description: ${packageJson.description}\n * author: ${packageJson.author}\n * homepage: ${packageJson.homepage}\n */`)
   ],
   build: {
-    minify: 'esbuild',
+    minify: 'terser',
     lib: {
       entry: path.resolve(__dirname, 'src/index.ts'),
       name: 'WshopsFrontendUtils',
