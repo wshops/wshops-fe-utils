@@ -67,7 +67,7 @@ export default class WshopUtils {
       }
     }
     this._message = new Message()
-    this._api = new ApiUtils(this._config.feedbacks!.apiFeedbacks!, `/api/${config?.apiVersion === undefined || config?.apiVersion === '' ? 'v1' : config?.apiVersion}`)
+    this._api = new ApiUtils(this._config.feedbacks!.apiFeedbacks!)
     this._validator = new Validation(this._config.feedbacks!.formValidationFeedbacks!)
     this._dsync = new Dsync()
     console.debug('wshop frontend utils loaded.')

@@ -8,7 +8,7 @@
     "url": "https://github.com/wshops/wshops-fe-utils.git"
   },
   "license": "MIT",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "packageManager": "yarn@1.22.19",
   "main": "dist/index.cjs.js",
   "module": "dist/index.mjs.js",
@@ -42,7 +42,7 @@
     "@types/jsdom": "^20.0.1",
     "@types/node": "^18.11.11",
     "@types/qs": "^6.9.7",
-    "apisauce": "^2.1.6",
+    "axios": "^1.2.2",
     "crypto-js": "^4.1.1",
     "dts-bundle-generator": "^7.1.0",
     "js-base64": "^3.7.3",

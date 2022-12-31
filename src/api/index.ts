@@ -1,16 +1,9 @@
-import { ApiResponse, ApisauceInstance, create } from 'apisauce'
+import axios, { AxiosInstance, AxiosResponse } from 'axios'
 
-export interface AscApiResponse {
+export interface WApiResponse {
   ret: number | undefined
   msg?: string
   data?: object
-}
-
-export interface ApiRequestCallback {
-  isRequestSucceed: boolean
-  feedbackShowed: boolean
-  errorMessage?: string
-  resultData?: AscApiResponse
 }
 
 export interface ApiRequestFeedbackHandlers {
@@ -22,128 +15,111 @@ export interface ApiRequestFeedbackHandlers {
 }
 
 export default class ApiUtils {
-  private readonly _apisauceInstance: ApisauceInstance
+  private readonly _instance: AxiosInstance
   private readonly _feedbackHandlers: ApiRequestFeedbackHandlers
 
-  constructor (feedbackHandlers: ApiRequestFeedbackHandlers, baseUrl?: string) {
+  constructor (feedbackHandlers: ApiRequestFeedbackHandlers) {
     this._feedbackHandlers = feedbackHandlers
-    this._apisauceInstance = create({
-      baseURL: baseUrl,
+    this._instance = axios.create({
+      timeout: 0,
       withCredentials: true,
       headers: {
-        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    })
+    this._instance.interceptors.response.use(this.responseInterceptorOnSuccess, (error) => this.responseInterceptorOnError(error, this._feedbackHandlers))
+  }
+
+  public get currentAxiosInstance (): AxiosInstance {
+    return this._instance
+  }
+
+  public newAxiosInstance (): AxiosInstance {
+    return axios.create({
+      timeout: 0,
+      withCredentials: true,
+      headers: {
         'Accept': 'application/json'
       }
     })
   }
 
-  public get apisauceInstance (): ApisauceInstance {
-    return this._apisauceInstance
-  }
-
   public setHeader (key: string, value: string): void {
-    this._apisauceInstance.setHeader(key, value)
+    this._instance.defaults.headers.common[key] = value
   }
 
-  public async get (url: string, data?: object): Promise<ApiRequestCallback> {
-    const res = await this._apisauceInstance.get<AscApiResponse>(url, data)
-    return this._processResponse(res)
+  public async get (url: string, data?: any): Promise<AxiosResponse<any, any> | any> {
+    return await this._instance.get(url, {
+      params: data
+    })
   }
 
-  public async post (url: string, data?: object): Promise<ApiRequestCallback> {
-    const res = await this._apisauceInstance.post<AscApiResponse>(url, data)
-    return this._processResponse(res)
+  public async post (url: string, data?: object): Promise<AxiosResponse<any, any> | any> {
+    return await this._instance.post(url, data)
   }
 
-  public async put (url: string, data?: object): Promise<ApiRequestCallback> {
-    const res = await this._apisauceInstance.put<AscApiResponse>(url, data)
-    return this._processResponse(res)
+  public async put (url: string, data?: object): Promise<AxiosResponse<any, any> | any> {
+    return await this._instance.put(url, data)
   }
 
-  public async del (url: string, data?: object): Promise<ApiRequestCallback> {
-    const res = await this._apisauceInstance.delete<AscApiResponse>(url, data)
-    return this._processResponse(res)
+  public async del (url: string, data?: object): Promise<AxiosResponse<any, any> | any> {
+    return await this._instance.delete(url, {
+      data: data
+    })
   }
 
-  public async patch (url: string, data?: object): Promise<ApiRequestCallback> {
-    const res = await this._apisauceInstance.patch<AscApiResponse>(url, data)
-    return this._processResponse(res)
+  public async patch (url: string, data?: object): Promise<AxiosResponse<any, any> | any> {
+    return await this._instance.patch(url, data)
   }
 
-  private _processResponse (r: ApiResponse<AscApiResponse>): ApiRequestCallback {
-    if (r === undefined || r.status === undefined || r.status === null) {
-      this._feedbackHandlers.onError('an unknown error occurred，please contact support.')
-      return {
-        isRequestSucceed: false,
-        feedbackShowed: true
-      }
-    }
+  // 当请求状态码在 2xx 范围内时，将调用此函数
+  private responseInterceptorOnSuccess (response: AxiosResponse<any, any>): Promise<AxiosResponse<any, any>> {
+    return Promise.resolve(response)
+  }
 
-    if (!r.ok) {
-      this._feedbackHandlers.onError('system busy, please try again later.')
-      console.error(r.problem)
-      return {
-        isRequestSucceed: false,
-        feedbackShowed: true
-      }
+  // 当请求状态码不在 2xx 范围内时或发生客户端错误时，将调用此函数
+  private responseInterceptorOnError (error: any, fbh: ApiRequestFeedbackHandlers): any {
+    if (error.message.includes('timeout')) {
+      fbh.onError('request timeout, please try again later.')
+      return Promise.reject(error)
     }
-
-    if (r.data?.ret === undefined || r.data?.ret === null) {
-      this._feedbackHandlers.onError('system busy, please try again later.')
-      console.error(r.problem)
-      return {
-        isRequestSucceed: false,
-        feedbackShowed: true
-      }
+    if (error.response === undefined || error.response === null) {
+      fbh.onError('request failed, please try again later.')
+      return Promise.reject(error)
     }
-
-    if (r.status === 200) {
-      return {
-        isRequestSucceed: true,
-        feedbackShowed: false,
-        resultData: r.data
+    if (error.response.status !== null || error.response.status !== undefined) {
+      switch (error.response.status) {
+        // 401: 未登录
+        case 401:
+          fbh.onUnAuthorized(error.response.data.message)
+          break
+        // 403 token过期
+        case 403:
+          fbh.onUnAuthorized(error.response.data.message)
+          break
+        // 404 请求不存在
+        case 404:
+          fbh.onError(error.response.data.message)
+          break
+        // 其他错误，直接根据业务错误码进行处理
+        case 400:
+          if (error.response.data.ret === -1) {
+            // 如果是参数验证错误则展示警告
+            fbh.onWarning(error.response.data.message)
+          } else {
+            fbh.onError(error.response.data.message)
+          }
+          break
+        case 500:
+          fbh.onError(error.response.data.message)
+          break
+        default:
+          fbh.onError(error.response.data.message)
+          break
       }
+      return Promise.resolve(null)
     }
-
-    if (r.status === 401) {
-      this._feedbackHandlers.onUnAuthorized('please login.')
-      return {
-        isRequestSucceed: true,
-        feedbackShowed: true,
-        resultData: r.data
-      }
-    }
-
-    if (r.status === 400) {
-      if (r.data.ret === -1) {
-        this._feedbackHandlers.onWarning(r.data.msg !== undefined ? r.data.msg : '')
-        return {
-          isRequestSucceed: true,
-          feedbackShowed: true,
-          resultData: r.data
-        }
-      }
-      this._feedbackHandlers.onError(r.data.msg !== undefined ? r.data.msg : '')
-      return {
-        isRequestSucceed: true,
-        feedbackShowed: true,
-        resultData: r.data
-      }
-    }
-
-    if (r.status === 500) {
-      this._feedbackHandlers.onError('system busy, please try again later.')
-      console.error(r.problem)
-      return {
-        isRequestSucceed: true,
-        feedbackShowed: true
-      }
-    }
-
-    return {
-      isRequestSucceed: false,
-      feedbackShowed: false,
-      resultData: r.data
-    }
+    fbh.onError('system error, please try again later.')
+    return Promise.reject(error)
   }
 }

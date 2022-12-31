@@ -66,4 +66,8 @@ document.getElementById('test-form')!.addEventListener('submit', e => {
   e.preventDefault()
   v.validate()
   alert(JSON.stringify(new WshopUtils().formDataToObject('test-form')))
+
+  new WshopUtils().api().get('example.com').then(res => {
+    console.log(res)
+  })
 })
