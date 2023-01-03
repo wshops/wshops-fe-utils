@@ -17,10 +17,9 @@ export interface InputRules {
 }
 export interface Rule {
 	validatorName?: keyof RegexRules;
-	customValidator?: Validator;
+	customValidator?: (value: string) => boolean;
 	invalidMessage: string;
 }
-export type Validator = (value: string) => boolean;
 export type RegexRules = {
 	[key: string]: RegExp;
 };

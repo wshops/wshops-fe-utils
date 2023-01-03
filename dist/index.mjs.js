@@ -2172,24 +2172,29 @@ class Validation {
       this._feedbackHandlers.onInvalid(resultResponse);
       return;
     }
+    const inputValue = element.value;
     for (const rule of rules) {
-      if (rule.validatorName !== void 0 && rule.validatorName !== null || rule.validatorName !== "") {
+      if (rule.validatorName === void 0 || rule.validatorName === null || rule.validatorName === "") {
+        if (rule.customValidator === void 0 || rule.customValidator === null) {
+          console.log("\u89C4\u5219\u5B9A\u4E49\u9519\u8BEF\uFF0C\u8BF7\u6307\u5B9A\u9A8C\u8BC1\u5668\u540D\u79F0\u6216\u6307\u5B9A\u81EA\u5B9A\u4E49\u9A8C\u8BC1\u5668");
+          return;
+        }
+        if (!rule.customValidator(inputValue)) {
+          resultResponse.isValid = false;
+          resultResponse.message = rule.invalidMessage;
+          this.validateResult = false;
+          this._feedbackHandlers.onInvalid(resultResponse);
+          return;
+        }
+      } else {
         if (RulesSet.hasOwnProperty(rule.validatorName)) {
-          if (!RulesSet[rule.validatorName].test(element.value)) {
+          if (!RulesSet[rule.validatorName].test(inputValue)) {
             resultResponse.isValid = false;
             resultResponse.message = rule.invalidMessage;
             this.validateResult = false;
             this._feedbackHandlers.onInvalid(resultResponse);
             return;
           }
-        }
-      } else {
-        if (!rule.customValidator(element.value)) {
-          resultResponse.isValid = false;
-          resultResponse.message = rule.invalidMessage;
-          this.validateResult = false;
-          this._feedbackHandlers.onInvalid(resultResponse);
-          return;
         }
       }
     }
