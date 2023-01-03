@@ -46,39 +46,6 @@ declare class ApiUtils {
 	private responseInterceptorOnSuccess;
 	private responseInterceptorOnError;
 }
-export interface MsgOptions {
-	type?: "info" | "success" | "warn" | "error" | "loading";
-	content?: string;
-	duration?: number;
-	onClose?: () => void;
-	closable?: boolean;
-}
-declare class Message {
-	private _options;
-	private readonly _prefixClass;
-	private readonly _topLength;
-	private readonly _containerId;
-	constructor(options?: MsgOptions);
-	info(msg: string): Promise<void>;
-	warn(msg: string): Promise<void>;
-	error(msg: string): Promise<void>;
-	success(msg: string): Promise<void>;
-	loading(msg?: string): () => Promise<any>;
-	reset(): void;
-	private _message;
-	private _showMessage;
-	private _closeMessage;
-	private _getType;
-	private _getContent;
-	private _getDurationMs;
-	private _isClosable;
-	private _initMessageContainer;
-	private _getMessageContainer;
-	private _generateMessageElement;
-	private _addCloseButton;
-	private _getIcon;
-	private _resetDefaultOptions;
-}
 declare class Validation {
 	private readonly _feedbackHandlers;
 	private initialized;
@@ -111,14 +78,12 @@ export interface WshopUtilsConfiguration {
 }
 export default class WshopUtils {
 	private _config;
-	private readonly _message;
 	private readonly _api;
 	private readonly _validator;
 	private readonly _dsync;
 	constructor(config?: WshopUtilsConfiguration);
 	setApiFeedbacks(fb: ApiRequestFeedbackHandlers): void;
 	setFormValidationFeedbacks(fb: FormValidationFeedbackHandlers): void;
-	msg(): Message;
 	api(): ApiUtils;
 	vd(withAsync?: boolean): Validation;
 	md5(str: string): string;

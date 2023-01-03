@@ -1,35 +1,7 @@
-import './message.less'
-import Message from './message'
-import Validator from './validation'
 import { InputRules } from './validation/types'
 import WshopUtils from './index'
 
-const msg = new Message()
-document.getElementById('msg-test')!.addEventListener('click', () => {
-  msg.success('成功！！！').then(async () => {
-    await new Promise(r => setTimeout(r, 500))
-    msg.info('hi').then(async () => {
-      await new Promise(r => setTimeout(r, 500))
-      msg.warn('fuck').then(async () => {
-        await new Promise(r => setTimeout(r, 500))
-        msg.error('omg!').then(async () => {
-          await new Promise(r => setTimeout(r, 500))
-          const loading = msg.loading()
-          setTimeout(loading, 10000)
-        })
-      })
-    })
-  })
-})
-
-const v = new Validator({
-  onValid: result => {
-    msg.success(`${result.inputElement.textContent} is (${result.isValid}), msg: ${result.message}`)
-  },
-  onInvalid: result => {
-    msg.warn(`${result.inputElement.textContent} is (${result.isValid}), msg: ${result.message}`)
-  }
-}, true)
+const v = new WshopUtils().vd(true)
 
 const validationRules: Array<InputRules> = [
   {

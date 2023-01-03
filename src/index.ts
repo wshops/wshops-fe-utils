@@ -1,6 +1,5 @@
 import { FormValidationFeedbackHandlers } from './validation/types'
 import ApiUtils, { ApiRequestFeedbackHandlers } from './api'
-import Message from './message'
 import Validation from './validation'
 import { Md5 } from 'ts-md5'
 import CryptoJS from 'crypto-js'
@@ -26,30 +25,27 @@ export default class WshopUtils {
     feedbacks: {
       apiFeedbacks: {
         onSuccess: (msg) => {
-          this.msg().success(msg)
+          console.log(`[API REQUEST] [SUCCESS]: ${msg}`)
         },
         onError: (msg) => {
-          this.msg().error(msg)
+          console.log(`[API REQUEST] [ERROR]: ${msg}`)
         },
         onWarning: (msg) => {
-          this.msg().warn(msg)
+          console.log(`[API REQUEST] [WARNING]: ${msg}`)
         },
         onInfo: (msg) => {
-          this.msg().info(msg)
+          console.log(`[API REQUEST] [INFO]: ${msg}`)
         },
         onUnAuthorized: (msg) => {
-          console.log('[Api Request]: UnAuthorized ' + msg)
-          this.msg().warn('UnAuthorized')
+          console.log(`[API REQUEST] [UnAuthorized]: ${msg}`)
         }
       },
       formValidationFeedbacks: {
-        onValid: (result) => {console.log(`[Form Validation]: (${result.inputElement.id}) (${result.isValid}) ${result.message}`)},
-        onInvalid: (result) => {console.log(`[Form Validation]: (${result.inputElement.id}) (${result.isValid}) ${result.message}`)}
+        onValid: (result) => {console.log(`[FORM VALIDATION] [VALID]: ${result.inputElement.id} | ${result.message}`)},
+        onInvalid: (result) => {console.log(`[FORM VALIDATION] [INVALID]: ${result.inputElement.id} | ${result.message}`)}
       }
     }
   }
-
-  private readonly _message: Message
   private readonly _api: ApiUtils
   private readonly _validator: Validation
 
@@ -66,7 +62,6 @@ export default class WshopUtils {
         }
       }
     }
-    this._message = new Message()
     this._api = new ApiUtils(this._config.feedbacks!.apiFeedbacks!)
     this._validator = new Validation(this._config.feedbacks!.formValidationFeedbacks!)
     this._dsync = new Dsync()
@@ -79,10 +74,6 @@ export default class WshopUtils {
 
   public setFormValidationFeedbacks (fb: FormValidationFeedbackHandlers) {
     this._config.feedbacks!.formValidationFeedbacks = fb
-  }
-
-  public msg (): Message {
-    return this._message
   }
 
   public api (): ApiUtils {
