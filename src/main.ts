@@ -25,8 +25,10 @@ const validationRules: Array<InputRules> = [
         invalidMessage: 'password is required'
       },
       {
-        validatorName: 'upper',
-        invalidMessage: 'wrong password format'
+        customValidator: (value: string): boolean => {
+          return value.length >= 6
+        },
+        invalidMessage: 'password length must be greater than 6'
       }
     ]
   }

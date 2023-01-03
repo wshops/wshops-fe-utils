@@ -81,26 +81,31 @@ export default class Validation {
       this._feedbackHandlers.onInvalid(resultResponse)
       return
     }
+    const inputValue = (element as HTMLInputElement).value
     for (const rule of rules) {
-      if (rule.validatorName !== undefined && rule.validatorName !== null || rule.validatorName !== '') {
+      if (rule.validatorName === undefined || rule.validatorName === null || rule.validatorName === '') {
+        if (rule.customValidator === undefined || rule.customValidator === null) {
+          console.log('规则定义错误，请指定验证器名称或指定自定义验证器')
+          return
+        }
+        //use custom validation
+        if (!rule.customValidator(inputValue)) {
+          resultResponse.isValid = false
+          resultResponse.message = rule.invalidMessage
+          this.validateResult = false
+          this._feedbackHandlers.onInvalid(resultResponse)
+          return
+        }
+      } else {
         if (RulesSet.hasOwnProperty(rule.validatorName!)) {
           //has preset regex
-          if (!RulesSet[rule.validatorName!]!.test((<HTMLInputElement>element).value)) {
+          if (!RulesSet[rule.validatorName!]!.test(inputValue)) {
             resultResponse.isValid = false
             resultResponse.message = rule.invalidMessage
             this.validateResult = false
             this._feedbackHandlers.onInvalid(resultResponse)
             return
           }
-        }
-      } else {
-        //use custom validation
-        if (!rule.customValidator!(((element as HTMLInputElement).value))) {
-          resultResponse.isValid = false
-          resultResponse.message = rule.invalidMessage
-          this.validateResult = false
-          this._feedbackHandlers.onInvalid(resultResponse)
-          return
         }
       }
     }
