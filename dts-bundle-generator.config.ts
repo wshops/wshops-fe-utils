@@ -1,16 +1,20 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const packageJson = require('./package.json')
+// @ts-check
 
-const getPackageName = () => {
-  return packageJson.name
-}
-
+/** @type import('dts-bundle-generator/config-schema').BundlerConfig */
 const config = {
   entries: [
     {
       filePath: './src/index.ts',
       outFile: `./dist/index.d.ts`,
-      noCheck: false
+      noCheck: false,
+      libraries: {
+        /**
+         * Array of package names from node_modules to inline typings from.
+         * Used types will be inlined into the output file.
+         * Optional. Default value is `[]`.
+         */
+        inlinedLibraries: ['axios']
+      }
     }
   ]
 }
