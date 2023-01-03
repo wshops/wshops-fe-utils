@@ -95,7 +95,7 @@ export default class Validation {
         }
       } else {
         //use custom validation
-        if (!rule.customValidator!((<HTMLInputElement>element).value)) {
+        if (!rule.customValidator!(((element as HTMLInputElement).value))) {
           resultResponse.isValid = false
           resultResponse.message = rule.invalidMessage
           this.validateResult = false
