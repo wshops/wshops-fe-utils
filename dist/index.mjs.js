@@ -1,6 +1,6 @@
 /**
  * name: wshops-fe-utils
- * version: v1.0.7
+ * version: v1.0.8
  * description: Wshops app frontend development toolkit
  * author: Tony An <anxuanzi@w-shops.com>
  * homepage: https://www.w-shops.com/
@@ -221,7 +221,7 @@ const matchAll = (regExp, str) => {
 const isHTMLForm = kindOfTest("HTMLFormElement");
 const toCamelCase = (str) => {
   return str.toLowerCase().replace(
-    /[_-\s]([a-z\d])(\w*)/g,
+    /[-_\s]([a-z\d])(\w*)/g,
     function replacer(m, p1, p2) {
       return p1.toUpperCase() + p2;
     }
@@ -275,6 +275,24 @@ const toFiniteNumber = (value, defaultValue) => {
   value = +value;
   return Number.isFinite(value) ? value : defaultValue;
 };
+const ALPHA = "abcdefghijklmnopqrstuvwxyz";
+const DIGIT = "0123456789";
+const ALPHABET = {
+  DIGIT,
+  ALPHA,
+  ALPHA_DIGIT: ALPHA + ALPHA.toUpperCase() + DIGIT
+};
+const generateString = (size = 16, alphabet = ALPHABET.ALPHA_DIGIT) => {
+  let str = "";
+  const { length } = alphabet;
+  while (size--) {
+    str += alphabet[Math.random() * length | 0];
+  }
+  return str;
+};
+function isSpecCompliantForm(thing) {
+  return !!(thing && isFunction(thing.append) && thing[Symbol.toStringTag] === "FormData" && thing[Symbol.iterator]);
+}
 const toJSONObject = (obj) => {
   const stack = new Array(10);
   const visit = (source, i) => {
@@ -334,6 +352,7 @@ const utils = {
   isHTMLForm,
   hasOwnProperty,
   hasOwnProp: hasOwnProperty,
+  // an alias to avoid ESLint no-prototype-builtins detection
   reduceDescriptors,
   freezeMethods,
   toObjectSet,
@@ -343,6 +362,9 @@ const utils = {
   findKey,
   global: _global,
   isContextDefined,
+  ALPHABET,
+  generateString,
+  isSpecCompliantForm,
   toJSONObject
 };
 function AxiosError(message, code, config, request, response) {
@@ -362,14 +384,18 @@ function AxiosError(message, code, config, request, response) {
 utils.inherits(AxiosError, Error, {
   toJSON: function toJSON() {
     return {
+      // Standard
       message: this.message,
       name: this.name,
+      // Microsoft
       description: this.description,
       number: this.number,
+      // Mozilla
       fileName: this.fileName,
       lineNumber: this.lineNumber,
       columnNumber: this.columnNumber,
       stack: this.stack,
+      // Axios
       config: utils.toJSONObject(this.config),
       code: this.code,
       status: this.response && this.response.status ? this.response.status : null
@@ -391,6 +417,7 @@ const descriptors = {};
   "ERR_CANCELED",
   "ERR_NOT_SUPPORT",
   "ERR_INVALID_URL"
+  // eslint-disable-next-line func-names
 ].forEach((code) => {
   descriptors[code] = { value: code };
 });
@@ -409,30 +436,7 @@ AxiosError.from = (error, code, config, request, response, customProps) => {
   customProps && Object.assign(axiosError, customProps);
   return axiosError;
 };
-var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
-function getAugmentedNamespace(n) {
-  var f = n.default;
-  if (typeof f == "function") {
-    var a = function() {
-      return f.apply(this, arguments);
-    };
-    a.prototype = f.prototype;
-  } else
-    a = {};
-  Object.defineProperty(a, "__esModule", { value: true });
-  Object.keys(n).forEach(function(k) {
-    var d = Object.getOwnPropertyDescriptor(n, k);
-    Object.defineProperty(a, k, d.get ? d : {
-      enumerable: true,
-      get: function() {
-        return n[k];
-      }
-    });
-  });
-  return a;
-}
-var browser = typeof self == "object" ? self.FormData : window.FormData;
-const FormData$2 = browser;
+const httpAdapter = null;
 function isVisitable(thing) {
   return utils.isPlainObject(thing) || utils.isArray(thing);
 }
@@ -453,14 +457,11 @@ function isFlatArray(arr) {
 const predicates = utils.toFlatObject(utils, {}, null, function filter(prop) {
   return /^is[A-Z]/.test(prop);
 });
-function isSpecCompliant(thing) {
-  return thing && utils.isFunction(thing.append) && thing[Symbol.toStringTag] === "FormData" && thing[Symbol.iterator];
-}
 function toFormData(obj, formData, options) {
   if (!utils.isObject(obj)) {
     throw new TypeError("target must be an object");
   }
-  formData = formData || new (FormData$2 || FormData)();
+  formData = formData || new FormData();
   options = utils.toFlatObject(options, {
     metaTokens: true,
     dots: false,
@@ -473,7 +474,7 @@ function toFormData(obj, formData, options) {
   const dots = options.dots;
   const indexes = options.indexes;
   const _Blob = options.Blob || typeof Blob !== "undefined" && Blob;
-  const useBlob = _Blob && isSpecCompliant(formData);
+  const useBlob = _Blob && utils.isSpecCompliantForm(formData);
   if (!utils.isFunction(visitor)) {
     throw new TypeError("visitor must be a function");
   }
@@ -497,10 +498,11 @@ function toFormData(obj, formData, options) {
       if (utils.endsWith(key, "{}")) {
         key = metaTokens ? key : key.slice(0, -2);
         value = JSON.stringify(value);
-      } else if (utils.isArray(value) && isFlatArray(value) || (utils.isFileList(value) || utils.endsWith(key, "[]") && (arr = utils.toArray(value)))) {
+      } else if (utils.isArray(value) && isFlatArray(value) || (utils.isFileList(value) || utils.endsWith(key, "[]")) && (arr = utils.toArray(value))) {
         key = removeBrackets(key);
         arr.forEach(function each(el, index) {
           !(utils.isUndefined(el) || el === null) && formData.append(
+            // eslint-disable-next-line no-nested-ternary
             indexes === true ? renderKey([key], index, dots) : indexes === null ? key : key + "[]",
             convertValue(el)
           );
@@ -605,6 +607,14 @@ class InterceptorManager {
   constructor() {
     this.handlers = [];
   }
+  /**
+   * Add a new interceptor to the stack
+   *
+   * @param {Function} fulfilled The function to handle `then` for a `Promise`
+   * @param {Function} rejected The function to handle `reject` for a `Promise`
+   *
+   * @return {Number} An ID used to remove interceptor later
+   */
   use(fulfilled, rejected, options) {
     this.handlers.push({
       fulfilled,
@@ -614,16 +624,38 @@ class InterceptorManager {
     });
     return this.handlers.length - 1;
   }
+  /**
+   * Remove an interceptor from the stack
+   *
+   * @param {Number} id The ID that was returned by `use`
+   *
+   * @returns {Boolean} `true` if the interceptor was removed, `false` otherwise
+   */
   eject(id) {
     if (this.handlers[id]) {
       this.handlers[id] = null;
     }
   }
+  /**
+   * Clear all interceptors from the stack
+   *
+   * @returns {void}
+   */
   clear() {
     if (this.handlers) {
       this.handlers = [];
     }
   }
+  /**
+   * Iterate over all the registered interceptors
+   *
+   * This method is particularly useful for skipping over any
+   * interceptors that may have become `null` calling `eject`.
+   *
+   * @param {Function} fn The function to call for each interceptor
+   *
+   * @returns {void}
+   */
   forEach(fn) {
     utils.forEach(this.handlers, function forEachHandler(h) {
       if (h !== null) {
@@ -648,7 +680,8 @@ const isStandardBrowserEnv = (() => {
   return typeof window !== "undefined" && typeof document !== "undefined";
 })();
 const isStandardBrowserWebWorkerEnv = (() => {
-  return typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope && typeof self.importScripts === "function";
+  return typeof WorkerGlobalScope !== "undefined" && // eslint-disable-next-line no-undef
+  self instanceof WorkerGlobalScope && typeof self.importScripts === "function";
 })();
 const platform = {
   isBrowser: true,
@@ -804,6 +837,10 @@ const defaults = {
     }
     return data;
   }],
+  /**
+   * A timeout in milliseconds to abort a request. If set to 0 (default) a
+   * timeout is not created.
+   */
   timeout: 0,
   xsrfCookieName: "XSRF-TOKEN",
   xsrfHeaderName: "X-XSRF-TOKEN",
@@ -975,7 +1012,7 @@ class AxiosHeaders {
     header = normalizeHeader(header);
     if (header) {
       const key = utils.findKey(this, header);
-      return !!(key && (!matcher || matchHeaderValue(this, this[key], key, matcher)));
+      return !!(key && this[key] !== void 0 && (!matcher || matchHeaderValue(this, this[key], key, matcher)));
     }
     return false;
   }
@@ -999,8 +1036,18 @@ class AxiosHeaders {
     }
     return deleted;
   }
-  clear() {
-    return Object.keys(this).forEach(this.delete.bind(this));
+  clear(matcher) {
+    const keys = Object.keys(this);
+    let i = keys.length;
+    let deleted = false;
+    while (i--) {
+      const key = keys[i];
+      if (!matcher || matchHeaderValue(this, this[key], key, matcher)) {
+        delete this[key];
+        deleted = true;
+      }
+    }
+    return deleted;
   }
   normalize(format) {
     const self2 = this;
@@ -1065,7 +1112,7 @@ class AxiosHeaders {
     return this;
   }
 }
-AxiosHeaders.accessor(["Content-Type", "Content-Length", "Accept", "Accept-Encoding", "User-Agent"]);
+AxiosHeaders.accessor(["Content-Type", "Content-Length", "Accept", "Accept-Encoding", "User-Agent", "Authorization"]);
 utils.freezeMethods(AxiosHeaders.prototype);
 utils.freezeMethods(AxiosHeaders);
 const AxiosHeaders$1 = AxiosHeaders;
@@ -1090,7 +1137,6 @@ function CanceledError(message, config, request) {
 utils.inherits(CanceledError, AxiosError, {
   __CANCEL__: true
 });
-const httpAdapter = null;
 function settle(resolve, reject, response) {
   const validateStatus2 = response.config.validateStatus;
   if (!response.status || !validateStatus2 || validateStatus2(response.status)) {
@@ -1105,44 +1151,50 @@ function settle(resolve, reject, response) {
     ));
   }
 }
-const cookies = platform.isStandardBrowserEnv ? function standardBrowserEnv() {
-  return {
-    write: function write(name, value, expires, path, domain, secure) {
-      const cookie = [];
-      cookie.push(name + "=" + encodeURIComponent(value));
-      if (utils.isNumber(expires)) {
-        cookie.push("expires=" + new Date(expires).toGMTString());
+const cookies = platform.isStandardBrowserEnv ? (
+  // Standard browser envs support document.cookie
+  function standardBrowserEnv() {
+    return {
+      write: function write(name, value, expires, path, domain, secure) {
+        const cookie = [];
+        cookie.push(name + "=" + encodeURIComponent(value));
+        if (utils.isNumber(expires)) {
+          cookie.push("expires=" + new Date(expires).toGMTString());
+        }
+        if (utils.isString(path)) {
+          cookie.push("path=" + path);
+        }
+        if (utils.isString(domain)) {
+          cookie.push("domain=" + domain);
+        }
+        if (secure === true) {
+          cookie.push("secure");
+        }
+        document.cookie = cookie.join("; ");
+      },
+      read: function read(name) {
+        const match = document.cookie.match(new RegExp("(^|;\\s*)(" + name + ")=([^;]*)"));
+        return match ? decodeURIComponent(match[3]) : null;
+      },
+      remove: function remove(name) {
+        this.write(name, "", Date.now() - 864e5);
       }
-      if (utils.isString(path)) {
-        cookie.push("path=" + path);
+    };
+  }()
+) : (
+  // Non standard browser env (web workers, react-native) lack needed support.
+  function nonStandardBrowserEnv() {
+    return {
+      write: function write() {
+      },
+      read: function read() {
+        return null;
+      },
+      remove: function remove() {
       }
-      if (utils.isString(domain)) {
-        cookie.push("domain=" + domain);
-      }
-      if (secure === true) {
-        cookie.push("secure");
-      }
-      document.cookie = cookie.join("; ");
-    },
-    read: function read(name) {
-      const match = document.cookie.match(new RegExp("(^|;\\s*)(" + name + ")=([^;]*)"));
-      return match ? decodeURIComponent(match[3]) : null;
-    },
-    remove: function remove(name) {
-      this.write(name, "", Date.now() - 864e5);
-    }
-  };
-}() : function nonStandardBrowserEnv() {
-  return {
-    write: function write() {
-    },
-    read: function read() {
-      return null;
-    },
-    remove: function remove() {
-    }
-  };
-}();
+    };
+  }()
+);
 function isAbsoluteURL(url) {
   return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url);
 }
@@ -1155,38 +1207,45 @@ function buildFullPath(baseURL, requestedURL) {
   }
   return requestedURL;
 }
-const isURLSameOrigin = platform.isStandardBrowserEnv ? function standardBrowserEnv2() {
-  const msie = /(msie|trident)/i.test(navigator.userAgent);
-  const urlParsingNode = document.createElement("a");
-  let originURL;
-  function resolveURL(url) {
-    let href = url;
-    if (msie) {
+const isURLSameOrigin = platform.isStandardBrowserEnv ? (
+  // Standard browser envs have full support of the APIs needed to test
+  // whether the request URL is of the same origin as current location.
+  function standardBrowserEnv2() {
+    const msie = /(msie|trident)/i.test(navigator.userAgent);
+    const urlParsingNode = document.createElement("a");
+    let originURL;
+    function resolveURL(url) {
+      let href = url;
+      if (msie) {
+        urlParsingNode.setAttribute("href", href);
+        href = urlParsingNode.href;
+      }
       urlParsingNode.setAttribute("href", href);
-      href = urlParsingNode.href;
+      return {
+        href: urlParsingNode.href,
+        protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, "") : "",
+        host: urlParsingNode.host,
+        search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, "") : "",
+        hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, "") : "",
+        hostname: urlParsingNode.hostname,
+        port: urlParsingNode.port,
+        pathname: urlParsingNode.pathname.charAt(0) === "/" ? urlParsingNode.pathname : "/" + urlParsingNode.pathname
+      };
     }
-    urlParsingNode.setAttribute("href", href);
-    return {
-      href: urlParsingNode.href,
-      protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, "") : "",
-      host: urlParsingNode.host,
-      search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, "") : "",
-      hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, "") : "",
-      hostname: urlParsingNode.hostname,
-      port: urlParsingNode.port,
-      pathname: urlParsingNode.pathname.charAt(0) === "/" ? urlParsingNode.pathname : "/" + urlParsingNode.pathname
+    originURL = resolveURL(window.location.href);
+    return function isURLSameOrigin2(requestURL) {
+      const parsed = utils.isString(requestURL) ? resolveURL(requestURL) : requestURL;
+      return parsed.protocol === originURL.protocol && parsed.host === originURL.host;
     };
-  }
-  originURL = resolveURL(window.location.href);
-  return function isURLSameOrigin2(requestURL) {
-    const parsed = utils.isString(requestURL) ? resolveURL(requestURL) : requestURL;
-    return parsed.protocol === originURL.protocol && parsed.host === originURL.host;
-  };
-}() : function nonStandardBrowserEnv2() {
-  return function isURLSameOrigin2() {
-    return true;
-  };
-}();
+  }()
+) : (
+  // Non standard browser envs (web workers, react-native) lack needed support.
+  function nonStandardBrowserEnv2() {
+    return function isURLSameOrigin2() {
+      return true;
+    };
+  }()
+);
 function parseProtocol(url) {
   const match = /^([-+\w]{1,25})(:?\/\/|:)/.exec(url);
   return match && match[1] || "";
@@ -1546,7 +1605,7 @@ function mergeConfig(config1, config2) {
   });
   return config;
 }
-const VERSION$1 = "1.2.2";
+const VERSION$1 = "1.3.2";
 const validators$1 = {};
 ["object", "boolean", "number", "function", "string", "symbol"].forEach((type, i) => {
   validators$1[type] = function validator2(thing) {
@@ -1612,6 +1671,14 @@ class Axios {
       response: new InterceptorManager$1()
     };
   }
+  /**
+   * Dispatch a request
+   *
+   * @param {String|Object} configOrUrl The config specific for this request (merged with this.defaults)
+   * @param {?Object} config
+   *
+   * @returns {Promise} The Promise to be fulfilled
+   */
   request(configOrUrl, config) {
     if (typeof configOrUrl === "string") {
       config = config || {};
@@ -1769,11 +1836,17 @@ class CancelToken {
       resolvePromise(token.reason);
     });
   }
+  /**
+   * Throws a `CanceledError` if cancellation has been requested.
+   */
   throwIfRequested() {
     if (this.reason) {
       throw this.reason;
     }
   }
+  /**
+   * Subscribe to the cancel signal
+   */
   subscribe(listener) {
     if (this.reason) {
       listener(this.reason);
@@ -1785,6 +1858,9 @@ class CancelToken {
       this._listeners = [listener];
     }
   }
+  /**
+   * Unsubscribe from the cancel signal
+   */
   unsubscribe(listener) {
     if (!this._listeners) {
       return;
@@ -1794,6 +1870,10 @@ class CancelToken {
       this._listeners.splice(index, 1);
     }
   }
+  /**
+   * Returns an object that contains a new `CancelToken` and a function that, when called,
+   * cancels the `CancelToken`.
+   */
   static source() {
     let cancel;
     const token = new CancelToken(function executor(c) {
@@ -1961,9 +2041,11 @@ class ApiUtils {
   async patch(url, data) {
     return await this._instance.patch(url, data);
   }
+  // 当请求状态码在 2xx 范围内时，将调用此函数
   responseInterceptorOnSuccess(response) {
     return Promise.resolve(response);
   }
+  // 当请求状态码不在 2xx 范围内时或发生客户端错误时，将调用此函数
   responseInterceptorOnError(error, fbh) {
     if (error.message.includes("timeout")) {
       fbh.onError("request timeout, please try again later.");
@@ -2032,6 +2114,7 @@ const RulesSet = {
   zipcode: /^(\d[1-7]|[1-9][0-7])\d{4}$/,
   ip: /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
   ipv6: /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/,
+  // eslint-disable-line max-len
   port: /^([0-9]|[1-9]\d{1,3}|[1-5]\d{4}|6[0-5]{2}[0-3][0-5])$/,
   domain: /^(?=^.{3,255}$)[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+$/i,
   bizcode: /^[0-9A-HJ-NPQRTUWXY]{2}\d{6}[0-9A-HJ-NPQRTUWXY]{10}$/,
@@ -2075,12 +2158,16 @@ const RulesSet = {
   hmt: /^(\d|[01]\d|2[0-3]):[0-5]\d$/,
   time: /^(\d|([01]\d|2[0-3])):([0-5]\d):([0-5]\d)$/,
   date: /^((((1[6-9]|[2-9]\d)\d{2})(-|\/)(0?[13578]|1[02])\5(0?[1-9]|[12]\d|3[01]))|(((1[6-9]|[2-9]\d)\d{2})(-|\/)(0?[13456789]|1[012])\11(0?[1-9]|[12]\d|30))|(((1[6-9]|[2-9]\d)\d{2})(-|\/)0?2\17(0?[1-9]|1\d|2[0-8]))|(((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))(-|\/)0?2\25(29)))$/,
+  // eslint-disable-line max-len
   datetime: /^((((1[6-9]|[2-9]\d)\d{2})(-|\/)(0?[13578]|1[02])\5(0?[1-9]|[12]\d|3[01]))|(((1[6-9]|[2-9]\d)\d{2})(-|\/)(0?[13456789]|1[012])\11(0?[1-9]|[12]\d|30))|(((1[6-9]|[2-9]\d)\d{2})(-|\/)0?2\17(0?[1-9]|1\d|2[0-8]))|(((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))(-|\/)0?2\25(29)))\s+(\d|([0-1]\d|2[0-3])):(\d|([0-5]?\d)):(\d|([0-5]?\d))$/,
+  // eslint-disable-line max-len
   idcard: /^((1[1-5])|(2[1-3])|(3[1-7])|(4[1-6])|(5[0-4])|(6[1-5])|71|(8[12])|91)\d{4}(((19|20)\d{2}(0[13-9]|1[012])(0[1-9]|[12]\d|30))|((19|20)\d{2}(0[13578]|1[02])31)|((19|20)\d{2}02(0[1-9]|1\d|2[0-8]))|(19([13579][26]|[2468][048]|0[48])0229))\d{3}(\d|X|x)?$/,
   autocard: /^(([\u4EAC\u6D25\u6CAA\u6E1D\u5180\u8C6B\u4E91\u8FBD\u9ED1\u6E58\u7696\u9C81\u65B0\u82CF\u6D59\u8D63\u9102\u6842\u7518\u664B\u8499\u9655\u5409\u95FD\u8D35\u7CA4\u9752\u85CF\u5DDD\u5B81\u743C\u4F7F\u9886][A-Z](([0-9]{5}[A-HJK])|([A-HJK]([A-HJ-NP-Z0-9])[0-9]{4})))|([\u4EAC\u6D25\u6CAA\u6E1D\u5180\u8C6B\u4E91\u8FBD\u9ED1\u6E58\u7696\u9C81\u65B0\u82CF\u6D59\u8D63\u9102\u6842\u7518\u664B\u8499\u9655\u5409\u95FD\u8D35\u7CA4\u9752\u85CF\u5DDD\u5B81\u743C\u4F7F\u9886][A-Z][A-HJ-NP-Z0-9]{4}[A-HJ-NP-Z0-9\u6302\u5B66\u8B66\u6E2F\u6FB3\u4F7F\u9886]))$/,
+  // eslint-disable-line max-len
   longitude: /^(\-|\+)?(0?\d{1,2}\.\d{1,15}|1[0-7]?\d{1}\.\d{1,15}|180\.0{1,15})$/,
   latitude: /^(\-|\+)?([0-8]?\d{1}\.\d{1,15}|90\.0{1,15})$/,
   londms: /^(\-|\+)?(0?\d{1,2}\u00B0(\d|[0-5]\d)\u2032(\d|[0-5]\d)(\.\d{1,2})?\u2033|1[0-7]?\d{1}\u00B0(\d|[0-5]\d)\u2032(\d|[0-5]\d)(\.\d{1,2})?\u2033|180\u00B000\u203200\u2033)$/,
+  // eslint-disable-line max-len
   latdms: /^(\-|\+)?([0-8]?\d{1}\u00B0(\d|[0-5]\d)\u2032(\d|[0-5]\d)(\.\d{1,2})?\u2033|90\u00B000\u203200\u2033)$/,
   approval: /^([\u2E80-\uFE4F]+)\u5B57(\u3014|\[)(19|20)\d{2}(\u3015|\])\u7B2C?\d{1,}\u53F7$/,
   citycode: /^((1[1-5])|(2[1-3])|(3[1-7])|(4[1-6])|(5[0-4])|(6[1-5])|71|(8[12]))\d{4}$/,
@@ -2139,7 +2226,7 @@ class Validation {
   }
   validate() {
     if (!this.initialized) {
-      console.error("\u8BF7\u5148\u6267\u884Cinit()\u51FD\u6570");
+      console.error("请先执行init()函数");
       return this;
     }
     for (const inputRule of this.inputRules) {
@@ -2152,7 +2239,7 @@ class Validation {
   }
   handleValidateField(element, rules) {
     if (!this.initialized) {
-      console.error("\u8BF7\u5148\u6267\u884Cinit()\u51FD\u6570");
+      console.error("请先执行init()函数");
       return;
     }
     let resultResponse = {
@@ -2161,13 +2248,13 @@ class Validation {
       message: ""
     };
     if (element === void 0) {
-      resultResponse.message = "\u65E0\u6548\u8F93\u5165\u53C2\u6570!";
+      resultResponse.message = "无效输入参数!";
       this.validateResult = false;
       this._feedbackHandlers.onInvalid(resultResponse);
       return;
     }
     if (rules.length === 0) {
-      resultResponse.message = "\u65E0\u6548\u7684\u89C4\u5219\u96C6!";
+      resultResponse.message = "无效的规则集!";
       this.validateResult = false;
       this._feedbackHandlers.onInvalid(resultResponse);
       return;
@@ -2176,7 +2263,7 @@ class Validation {
     for (const rule of rules) {
       if (rule.validatorName === void 0 || rule.validatorName === null || rule.validatorName === "") {
         if (rule.customValidator === void 0 || rule.customValidator === null) {
-          console.log("\u89C4\u5219\u5B9A\u4E49\u9519\u8BEF\uFF0C\u8BF7\u6307\u5B9A\u9A8C\u8BC1\u5668\u540D\u79F0\u6216\u6307\u5B9A\u81EA\u5B9A\u4E49\u9A8C\u8BC1\u5668");
+          console.log("规则定义错误，请指定验证器名称或指定自定义验证器");
           return;
         }
         if (!rule.customValidator(inputValue)) {
@@ -2377,12 +2464,22 @@ class Md5 {
     x[2] = c + x[2] | 0;
     x[3] = d + x[3] | 0;
   }
+  /**
+   * Initialise buffer to be hashed
+   */
   start() {
     this._dataLength = 0;
     this._bufferLength = 0;
     this._state.set(Md5.stateIdentity);
     return this;
   }
+  // Char to code point to to array conversion:
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charCodeAt
+  // #Example.3A_Fixing_charCodeAt_to_handle_non-Basic-Multilingual-Plane_characters_if_their_presence_earlier_in_the_string_is_unknown
+  /**
+   * Append a UTF-8 string to the hash buffer
+   * @param str String to append
+   */
   appendStr(str) {
     const buf8 = this._buffer8;
     const buf32 = this._buffer32;
@@ -2420,6 +2517,10 @@ class Md5 {
     this._bufferLength = bufLen;
     return this;
   }
+  /**
+   * Append an ASCII string to the hash buffer
+   * @param str String to append
+   */
   appendAsciiStr(str) {
     const buf8 = this._buffer8;
     const buf32 = this._buffer32;
@@ -2441,6 +2542,10 @@ class Md5 {
     this._bufferLength = bufLen;
     return this;
   }
+  /**
+   * Append a byte array to the hash buffer
+   * @param input array to append
+   */
   appendByteArray(input) {
     const buf8 = this._buffer8;
     const buf32 = this._buffer32;
@@ -2462,6 +2567,9 @@ class Md5 {
     this._bufferLength = bufLen;
     return this;
   }
+  /**
+   * Get the state of the hash buffer
+   */
   getState() {
     const s = this._state;
     return {
@@ -2471,6 +2579,10 @@ class Md5 {
       state: [s[0], s[1], s[2], s[3]]
     };
   }
+  /**
+   * Override the current state of the hash buffer
+   * @param state New hash buffer state
+   */
   setState(state) {
     const buf = state.buffer;
     const x = state.state;
@@ -2486,6 +2598,10 @@ class Md5 {
       this._buffer8[i] = buf.charCodeAt(i);
     }
   }
+  /**
+   * Hash the current state of the hash buffer and return the result
+   * @param raw Whether to return the value as an `Int32Array`
+   */
   end(raw = false) {
     const bufLen = this._bufferLength;
     const buf8 = this._buffer8;
@@ -2524,11 +2640,57 @@ Md5.onePassHasher = new Md5();
 if (Md5.hashStr("hello") !== "5d41402abc4b2a76b9719d911017c592") {
   throw new Error("Md5 self test failed.");
 }
-var cryptoJs = { exports: {} };
+var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
+function getAugmentedNamespace(n) {
+  if (n.__esModule)
+    return n;
+  var f = n.default;
+  if (typeof f == "function") {
+    var a = function a2() {
+      if (this instanceof a2) {
+        var args = [null];
+        args.push.apply(args, arguments);
+        var Ctor = Function.bind.apply(f, args);
+        return new Ctor();
+      }
+      return f.apply(this, arguments);
+    };
+    a.prototype = f.prototype;
+  } else
+    a = {};
+  Object.defineProperty(a, "__esModule", { value: true });
+  Object.keys(n).forEach(function(k) {
+    var d = Object.getOwnPropertyDescriptor(n, k);
+    Object.defineProperty(a, k, d.get ? d : {
+      enumerable: true,
+      get: function() {
+        return n[k];
+      }
+    });
+  });
+  return a;
+}
+var cryptoJsExports = {};
+var cryptoJs = {
+  get exports() {
+    return cryptoJsExports;
+  },
+  set exports(v) {
+    cryptoJsExports = v;
+  }
+};
 function commonjsRequire(path) {
   throw new Error('Could not dynamically require "' + path + '". Please configure the dynamicRequireTargets or/and ignoreDynamicRequires option of @rollup/plugin-commonjs appropriately for this require call to work.');
 }
-var core = { exports: {} };
+var coreExports = {};
+var core = {
+  get exports() {
+    return coreExports;
+  },
+  set exports(v) {
+    coreExports = v;
+  }
+};
 const __viteBrowserExternal = {};
 const __viteBrowserExternal$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
@@ -2538,7 +2700,7 @@ const require$$0 = /* @__PURE__ */ getAugmentedNamespace(__viteBrowserExternal$1
 var hasRequiredCore;
 function requireCore() {
   if (hasRequiredCore)
-    return core.exports;
+    return coreExports;
   hasRequiredCore = 1;
   (function(module, exports) {
     (function(root, factory) {
@@ -2546,7 +2708,7 @@ function requireCore() {
         module.exports = factory();
       }
     })(commonjsGlobal, function() {
-      var CryptoJS2 = CryptoJS2 || function(Math2, undefined$1) {
+      var CryptoJS = CryptoJS || function(Math2, undefined$1) {
         var crypto;
         if (typeof window !== "undefined" && window.crypto) {
           crypto = window.crypto;
@@ -2601,6 +2763,24 @@ function requireCore() {
         var C_lib = C.lib = {};
         var Base = C_lib.Base = function() {
           return {
+            /**
+             * Creates a new object that inherits from this object.
+             *
+             * @param {Object} overrides Properties to copy into the new object.
+             *
+             * @return {Object} The new object.
+             *
+             * @static
+             *
+             * @example
+             *
+             *     var MyType = CryptoJS.lib.Base.extend({
+             *         field: 'value',
+             *
+             *         method: function () {
+             *         }
+             *     });
+             */
             extend: function(overrides) {
               var subtype = create(this);
               if (overrides) {
@@ -2615,13 +2795,48 @@ function requireCore() {
               subtype.$super = this;
               return subtype;
             },
+            /**
+             * Extends this object and runs the init method.
+             * Arguments to create() will be passed to init().
+             *
+             * @return {Object} The new object.
+             *
+             * @static
+             *
+             * @example
+             *
+             *     var instance = MyType.create();
+             */
             create: function() {
               var instance = this.extend();
               instance.init.apply(instance, arguments);
               return instance;
             },
+            /**
+             * Initializes a newly created object.
+             * Override this method to add some logic when your objects are created.
+             *
+             * @example
+             *
+             *     var MyType = CryptoJS.lib.Base.extend({
+             *         init: function () {
+             *             // ...
+             *         }
+             *     });
+             */
             init: function() {
             },
+            /**
+             * Copies properties into this object.
+             *
+             * @param {Object} properties The properties to mix in.
+             *
+             * @example
+             *
+             *     MyType.mixIn({
+             *         field: 'value'
+             *     });
+             */
             mixIn: function(properties) {
               for (var propertyName in properties) {
                 if (properties.hasOwnProperty(propertyName)) {
@@ -2632,12 +2847,33 @@ function requireCore() {
                 this.toString = properties.toString;
               }
             },
+            /**
+             * Creates a copy of this object.
+             *
+             * @return {Object} The clone.
+             *
+             * @example
+             *
+             *     var clone = instance.clone();
+             */
             clone: function() {
               return this.init.prototype.extend(this);
             }
           };
         }();
         var WordArray = C_lib.WordArray = Base.extend({
+          /**
+           * Initializes a newly created word array.
+           *
+           * @param {Array} words (Optional) An array of 32-bit words.
+           * @param {number} sigBytes (Optional) The number of significant bytes in the words.
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.lib.WordArray.create();
+           *     var wordArray = CryptoJS.lib.WordArray.create([0x00010203, 0x04050607]);
+           *     var wordArray = CryptoJS.lib.WordArray.create([0x00010203, 0x04050607], 6);
+           */
           init: function(words, sigBytes) {
             words = this.words = words || [];
             if (sigBytes != undefined$1) {
@@ -2646,9 +2882,33 @@ function requireCore() {
               this.sigBytes = words.length * 4;
             }
           },
+          /**
+           * Converts this word array to a string.
+           *
+           * @param {Encoder} encoder (Optional) The encoding strategy to use. Default: CryptoJS.enc.Hex
+           *
+           * @return {string} The stringified word array.
+           *
+           * @example
+           *
+           *     var string = wordArray + '';
+           *     var string = wordArray.toString();
+           *     var string = wordArray.toString(CryptoJS.enc.Utf8);
+           */
           toString: function(encoder) {
             return (encoder || Hex).stringify(this);
           },
+          /**
+           * Concatenates a word array to this word array.
+           *
+           * @param {WordArray} wordArray The word array to append.
+           *
+           * @return {WordArray} This word array.
+           *
+           * @example
+           *
+           *     wordArray1.concat(wordArray2);
+           */
           concat: function(wordArray) {
             var thisWords = this.words;
             var thatWords = wordArray.words;
@@ -2668,17 +2928,46 @@ function requireCore() {
             this.sigBytes += thatSigBytes;
             return this;
           },
+          /**
+           * Removes insignificant bits.
+           *
+           * @example
+           *
+           *     wordArray.clamp();
+           */
           clamp: function() {
             var words = this.words;
             var sigBytes = this.sigBytes;
             words[sigBytes >>> 2] &= 4294967295 << 32 - sigBytes % 4 * 8;
             words.length = Math2.ceil(sigBytes / 4);
           },
+          /**
+           * Creates a copy of this word array.
+           *
+           * @return {WordArray} The clone.
+           *
+           * @example
+           *
+           *     var clone = wordArray.clone();
+           */
           clone: function() {
             var clone = Base.clone.call(this);
             clone.words = this.words.slice(0);
             return clone;
           },
+          /**
+           * Creates a word array filled with random bytes.
+           *
+           * @param {number} nBytes The number of random bytes to generate.
+           *
+           * @return {WordArray} The random word array.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.lib.WordArray.random(16);
+           */
           random: function(nBytes) {
             var words = [];
             for (var i = 0; i < nBytes; i += 4) {
@@ -2689,6 +2978,19 @@ function requireCore() {
         });
         var C_enc = C.enc = {};
         var Hex = C_enc.Hex = {
+          /**
+           * Converts a word array to a hex string.
+           *
+           * @param {WordArray} wordArray The word array.
+           *
+           * @return {string} The hex string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var hexString = CryptoJS.enc.Hex.stringify(wordArray);
+           */
           stringify: function(wordArray) {
             var words = wordArray.words;
             var sigBytes = wordArray.sigBytes;
@@ -2700,6 +3002,19 @@ function requireCore() {
             }
             return hexChars.join("");
           },
+          /**
+           * Converts a hex string to a word array.
+           *
+           * @param {string} hexStr The hex string.
+           *
+           * @return {WordArray} The word array.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.enc.Hex.parse(hexString);
+           */
           parse: function(hexStr) {
             var hexStrLength = hexStr.length;
             var words = [];
@@ -2710,6 +3025,19 @@ function requireCore() {
           }
         };
         var Latin1 = C_enc.Latin1 = {
+          /**
+           * Converts a word array to a Latin1 string.
+           *
+           * @param {WordArray} wordArray The word array.
+           *
+           * @return {string} The Latin1 string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var latin1String = CryptoJS.enc.Latin1.stringify(wordArray);
+           */
           stringify: function(wordArray) {
             var words = wordArray.words;
             var sigBytes = wordArray.sigBytes;
@@ -2720,6 +3048,19 @@ function requireCore() {
             }
             return latin1Chars.join("");
           },
+          /**
+           * Converts a Latin1 string to a word array.
+           *
+           * @param {string} latin1Str The Latin1 string.
+           *
+           * @return {WordArray} The word array.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.enc.Latin1.parse(latin1String);
+           */
           parse: function(latin1Str) {
             var latin1StrLength = latin1Str.length;
             var words = [];
@@ -2730,6 +3071,19 @@ function requireCore() {
           }
         };
         var Utf8 = C_enc.Utf8 = {
+          /**
+           * Converts a word array to a UTF-8 string.
+           *
+           * @param {WordArray} wordArray The word array.
+           *
+           * @return {string} The UTF-8 string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var utf8String = CryptoJS.enc.Utf8.stringify(wordArray);
+           */
           stringify: function(wordArray) {
             try {
               return decodeURIComponent(escape(Latin1.stringify(wordArray)));
@@ -2737,15 +3091,45 @@ function requireCore() {
               throw new Error("Malformed UTF-8 data");
             }
           },
+          /**
+           * Converts a UTF-8 string to a word array.
+           *
+           * @param {string} utf8Str The UTF-8 string.
+           *
+           * @return {WordArray} The word array.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.enc.Utf8.parse(utf8String);
+           */
           parse: function(utf8Str) {
             return Latin1.parse(unescape(encodeURIComponent(utf8Str)));
           }
         };
         var BufferedBlockAlgorithm = C_lib.BufferedBlockAlgorithm = Base.extend({
+          /**
+           * Resets this block algorithm's data buffer to its initial state.
+           *
+           * @example
+           *
+           *     bufferedBlockAlgorithm.reset();
+           */
           reset: function() {
             this._data = new WordArray.init();
             this._nDataBytes = 0;
           },
+          /**
+           * Adds new data to this block algorithm's buffer.
+           *
+           * @param {WordArray|string} data The data to append. Strings are converted to a WordArray using UTF-8.
+           *
+           * @example
+           *
+           *     bufferedBlockAlgorithm._append('data');
+           *     bufferedBlockAlgorithm._append(wordArray);
+           */
           _append: function(data) {
             if (typeof data == "string") {
               data = Utf8.parse(data);
@@ -2753,6 +3137,20 @@ function requireCore() {
             this._data.concat(data);
             this._nDataBytes += data.sigBytes;
           },
+          /**
+           * Processes available data blocks.
+           *
+           * This method invokes _doProcessBlock(offset), which must be implemented by a concrete subtype.
+           *
+           * @param {boolean} doFlush Whether all blocks and partial blocks should be processed.
+           *
+           * @return {WordArray} The processed data.
+           *
+           * @example
+           *
+           *     var processedData = bufferedBlockAlgorithm._process();
+           *     var processedData = bufferedBlockAlgorithm._process(!!'flush');
+           */
           _process: function(doFlush) {
             var processedWords;
             var data = this._data;
@@ -2777,6 +3175,15 @@ function requireCore() {
             }
             return new WordArray.init(processedWords, nBytesReady);
           },
+          /**
+           * Creates a copy of this object.
+           *
+           * @return {Object} The clone.
+           *
+           * @example
+           *
+           *     var clone = bufferedBlockAlgorithm.clone();
+           */
           clone: function() {
             var clone = Base.clone.call(this);
             clone._data = this._data.clone();
@@ -2785,20 +3192,65 @@ function requireCore() {
           _minBufferSize: 0
         });
         C_lib.Hasher = BufferedBlockAlgorithm.extend({
+          /**
+           * Configuration options.
+           */
           cfg: Base.extend(),
+          /**
+           * Initializes a newly created hasher.
+           *
+           * @param {Object} cfg (Optional) The configuration options to use for this hash computation.
+           *
+           * @example
+           *
+           *     var hasher = CryptoJS.algo.SHA256.create();
+           */
           init: function(cfg) {
             this.cfg = this.cfg.extend(cfg);
             this.reset();
           },
+          /**
+           * Resets this hasher to its initial state.
+           *
+           * @example
+           *
+           *     hasher.reset();
+           */
           reset: function() {
             BufferedBlockAlgorithm.reset.call(this);
             this._doReset();
           },
+          /**
+           * Updates this hasher with a message.
+           *
+           * @param {WordArray|string} messageUpdate The message to append.
+           *
+           * @return {Hasher} This hasher.
+           *
+           * @example
+           *
+           *     hasher.update('message');
+           *     hasher.update(wordArray);
+           */
           update: function(messageUpdate) {
             this._append(messageUpdate);
             this._process();
             return this;
           },
+          /**
+           * Finalizes the hash computation.
+           * Note that the finalize operation is effectively a destructive, read-once operation.
+           *
+           * @param {WordArray|string} messageUpdate (Optional) A final message update.
+           *
+           * @return {WordArray} The hash.
+           *
+           * @example
+           *
+           *     var hash = hasher.finalize();
+           *     var hash = hasher.finalize('message');
+           *     var hash = hasher.finalize(wordArray);
+           */
           finalize: function(messageUpdate) {
             if (messageUpdate) {
               this._append(messageUpdate);
@@ -2807,11 +3259,37 @@ function requireCore() {
             return hash;
           },
           blockSize: 512 / 32,
+          /**
+           * Creates a shortcut function to a hasher's object interface.
+           *
+           * @param {Hasher} hasher The hasher to create a helper for.
+           *
+           * @return {Function} The shortcut function.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var SHA256 = CryptoJS.lib.Hasher._createHelper(CryptoJS.algo.SHA256);
+           */
           _createHelper: function(hasher) {
             return function(message, cfg) {
               return new hasher.init(cfg).finalize(message);
             };
           },
+          /**
+           * Creates a shortcut function to the HMAC's object interface.
+           *
+           * @param {Hasher} hasher The hasher to use in this HMAC helper.
+           *
+           * @return {Function} The shortcut function.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var HmacSHA256 = CryptoJS.lib.Hasher._createHmacHelper(CryptoJS.algo.SHA256);
+           */
           _createHmacHelper: function(hasher) {
             return function(message, key) {
               return new C_algo.HMAC.init(hasher, key).finalize(message);
@@ -2821,36 +3299,223 @@ function requireCore() {
         var C_algo = C.algo = {};
         return C;
       }(Math);
-      return CryptoJS2;
+      return CryptoJS;
     });
   })(core);
-  return core.exports;
+  return coreExports;
 }
-var x64Core = { exports: {} };
+var x64CoreExports = {};
+var x64Core = {
+  get exports() {
+    return x64CoreExports;
+  },
+  set exports(v) {
+    x64CoreExports = v;
+  }
+};
 var hasRequiredX64Core;
 function requireX64Core() {
   if (hasRequiredX64Core)
-    return x64Core.exports;
+    return x64CoreExports;
   hasRequiredX64Core = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function(undefined$1) {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var Base = C_lib.Base;
         var X32WordArray = C_lib.WordArray;
         var C_x64 = C.x64 = {};
         C_x64.Word = Base.extend({
+          /**
+           * Initializes a newly created 64-bit word.
+           *
+           * @param {number} high The high 32 bits.
+           * @param {number} low The low 32 bits.
+           *
+           * @example
+           *
+           *     var x64Word = CryptoJS.x64.Word.create(0x00010203, 0x04050607);
+           */
           init: function(high, low) {
             this.high = high;
             this.low = low;
           }
+          /**
+           * Bitwise NOTs this word.
+           *
+           * @return {X64Word} A new x64-Word object after negating.
+           *
+           * @example
+           *
+           *     var negated = x64Word.not();
+           */
+          // not: function () {
+          // var high = ~this.high;
+          // var low = ~this.low;
+          // return X64Word.create(high, low);
+          // },
+          /**
+           * Bitwise ANDs this word with the passed word.
+           *
+           * @param {X64Word} word The x64-Word to AND with this word.
+           *
+           * @return {X64Word} A new x64-Word object after ANDing.
+           *
+           * @example
+           *
+           *     var anded = x64Word.and(anotherX64Word);
+           */
+          // and: function (word) {
+          // var high = this.high & word.high;
+          // var low = this.low & word.low;
+          // return X64Word.create(high, low);
+          // },
+          /**
+           * Bitwise ORs this word with the passed word.
+           *
+           * @param {X64Word} word The x64-Word to OR with this word.
+           *
+           * @return {X64Word} A new x64-Word object after ORing.
+           *
+           * @example
+           *
+           *     var ored = x64Word.or(anotherX64Word);
+           */
+          // or: function (word) {
+          // var high = this.high | word.high;
+          // var low = this.low | word.low;
+          // return X64Word.create(high, low);
+          // },
+          /**
+           * Bitwise XORs this word with the passed word.
+           *
+           * @param {X64Word} word The x64-Word to XOR with this word.
+           *
+           * @return {X64Word} A new x64-Word object after XORing.
+           *
+           * @example
+           *
+           *     var xored = x64Word.xor(anotherX64Word);
+           */
+          // xor: function (word) {
+          // var high = this.high ^ word.high;
+          // var low = this.low ^ word.low;
+          // return X64Word.create(high, low);
+          // },
+          /**
+           * Shifts this word n bits to the left.
+           *
+           * @param {number} n The number of bits to shift.
+           *
+           * @return {X64Word} A new x64-Word object after shifting.
+           *
+           * @example
+           *
+           *     var shifted = x64Word.shiftL(25);
+           */
+          // shiftL: function (n) {
+          // if (n < 32) {
+          // var high = (this.high << n) | (this.low >>> (32 - n));
+          // var low = this.low << n;
+          // } else {
+          // var high = this.low << (n - 32);
+          // var low = 0;
+          // }
+          // return X64Word.create(high, low);
+          // },
+          /**
+           * Shifts this word n bits to the right.
+           *
+           * @param {number} n The number of bits to shift.
+           *
+           * @return {X64Word} A new x64-Word object after shifting.
+           *
+           * @example
+           *
+           *     var shifted = x64Word.shiftR(7);
+           */
+          // shiftR: function (n) {
+          // if (n < 32) {
+          // var low = (this.low >>> n) | (this.high << (32 - n));
+          // var high = this.high >>> n;
+          // } else {
+          // var low = this.high >>> (n - 32);
+          // var high = 0;
+          // }
+          // return X64Word.create(high, low);
+          // },
+          /**
+           * Rotates this word n bits to the left.
+           *
+           * @param {number} n The number of bits to rotate.
+           *
+           * @return {X64Word} A new x64-Word object after rotating.
+           *
+           * @example
+           *
+           *     var rotated = x64Word.rotL(25);
+           */
+          // rotL: function (n) {
+          // return this.shiftL(n).or(this.shiftR(64 - n));
+          // },
+          /**
+           * Rotates this word n bits to the right.
+           *
+           * @param {number} n The number of bits to rotate.
+           *
+           * @return {X64Word} A new x64-Word object after rotating.
+           *
+           * @example
+           *
+           *     var rotated = x64Word.rotR(7);
+           */
+          // rotR: function (n) {
+          // return this.shiftR(n).or(this.shiftL(64 - n));
+          // },
+          /**
+           * Adds this word with the passed word.
+           *
+           * @param {X64Word} word The x64-Word to add with this word.
+           *
+           * @return {X64Word} A new x64-Word object after adding.
+           *
+           * @example
+           *
+           *     var added = x64Word.add(anotherX64Word);
+           */
+          // add: function (word) {
+          // var low = (this.low + word.low) | 0;
+          // var carry = (low >>> 0) < (this.low >>> 0) ? 1 : 0;
+          // var high = (this.high + word.high + carry) | 0;
+          // return X64Word.create(high, low);
+          // }
         });
         C_x64.WordArray = Base.extend({
+          /**
+           * Initializes a newly created word array.
+           *
+           * @param {Array} words (Optional) An array of CryptoJS.x64.Word objects.
+           * @param {number} sigBytes (Optional) The number of significant bytes in the words.
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.x64.WordArray.create();
+           *
+           *     var wordArray = CryptoJS.x64.WordArray.create([
+           *         CryptoJS.x64.Word.create(0x00010203, 0x04050607),
+           *         CryptoJS.x64.Word.create(0x18191a1b, 0x1c1d1e1f)
+           *     ]);
+           *
+           *     var wordArray = CryptoJS.x64.WordArray.create([
+           *         CryptoJS.x64.Word.create(0x00010203, 0x04050607),
+           *         CryptoJS.x64.Word.create(0x18191a1b, 0x1c1d1e1f)
+           *     ], 10);
+           */
           init: function(words, sigBytes) {
             words = this.words = words || [];
             if (sigBytes != undefined$1) {
@@ -2859,6 +3524,15 @@ function requireX64Core() {
               this.sigBytes = words.length * 8;
             }
           },
+          /**
+           * Converts this 64-bit word array to a 32-bit word array.
+           *
+           * @return {CryptoJS.lib.WordArray} This word array's data as a 32-bit word array.
+           *
+           * @example
+           *
+           *     var x32WordArray = x64WordArray.toX32();
+           */
           toX32: function() {
             var x64Words = this.words;
             var x64WordsLength = x64Words.length;
@@ -2870,6 +3544,15 @@ function requireX64Core() {
             }
             return X32WordArray.create(x32Words, this.sigBytes);
           },
+          /**
+           * Creates a copy of this word array.
+           *
+           * @return {X64WordArray} The clone.
+           *
+           * @example
+           *
+           *     var clone = x64WordArray.clone();
+           */
           clone: function() {
             var clone = Base.clone.call(this);
             var words = clone.words = this.words.slice(0);
@@ -2881,28 +3564,36 @@ function requireX64Core() {
           }
         });
       })();
-      return CryptoJS2;
+      return CryptoJS;
     });
   })(x64Core);
-  return x64Core.exports;
+  return x64CoreExports;
 }
-var libTypedarrays = { exports: {} };
+var libTypedarraysExports = {};
+var libTypedarrays = {
+  get exports() {
+    return libTypedarraysExports;
+  },
+  set exports(v) {
+    libTypedarraysExports = v;
+  }
+};
 var hasRequiredLibTypedarrays;
 function requireLibTypedarrays() {
   if (hasRequiredLibTypedarrays)
-    return libTypedarrays.exports;
+    return libTypedarraysExports;
   hasRequiredLibTypedarrays = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
         if (typeof ArrayBuffer != "function") {
           return;
         }
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var superInit = WordArray.init;
@@ -2926,29 +3617,50 @@ function requireLibTypedarrays() {
         };
         subInit.prototype = WordArray;
       })();
-      return CryptoJS2.lib.WordArray;
+      return CryptoJS.lib.WordArray;
     });
   })(libTypedarrays);
-  return libTypedarrays.exports;
+  return libTypedarraysExports;
 }
-var encUtf16 = { exports: {} };
+var encUtf16Exports = {};
+var encUtf16 = {
+  get exports() {
+    return encUtf16Exports;
+  },
+  set exports(v) {
+    encUtf16Exports = v;
+  }
+};
 var hasRequiredEncUtf16;
 function requireEncUtf16() {
   if (hasRequiredEncUtf16)
-    return encUtf16.exports;
+    return encUtf16Exports;
   hasRequiredEncUtf16 = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var C_enc = C.enc;
         C_enc.Utf16 = C_enc.Utf16BE = {
+          /**
+           * Converts a word array to a UTF-16 BE string.
+           *
+           * @param {WordArray} wordArray The word array.
+           *
+           * @return {string} The UTF-16 BE string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var utf16String = CryptoJS.enc.Utf16.stringify(wordArray);
+           */
           stringify: function(wordArray) {
             var words = wordArray.words;
             var sigBytes = wordArray.sigBytes;
@@ -2959,6 +3671,19 @@ function requireEncUtf16() {
             }
             return utf16Chars.join("");
           },
+          /**
+           * Converts a UTF-16 BE string to a word array.
+           *
+           * @param {string} utf16Str The UTF-16 BE string.
+           *
+           * @return {WordArray} The word array.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.enc.Utf16.parse(utf16String);
+           */
           parse: function(utf16Str) {
             var utf16StrLength = utf16Str.length;
             var words = [];
@@ -2969,6 +3694,19 @@ function requireEncUtf16() {
           }
         };
         C_enc.Utf16LE = {
+          /**
+           * Converts a word array to a UTF-16 LE string.
+           *
+           * @param {WordArray} wordArray The word array.
+           *
+           * @return {string} The UTF-16 LE string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var utf16Str = CryptoJS.enc.Utf16LE.stringify(wordArray);
+           */
           stringify: function(wordArray) {
             var words = wordArray.words;
             var sigBytes = wordArray.sigBytes;
@@ -2979,6 +3717,19 @@ function requireEncUtf16() {
             }
             return utf16Chars.join("");
           },
+          /**
+           * Converts a UTF-16 LE string to a word array.
+           *
+           * @param {string} utf16Str The UTF-16 LE string.
+           *
+           * @return {WordArray} The word array.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.enc.Utf16LE.parse(utf16Str);
+           */
           parse: function(utf16Str) {
             var utf16StrLength = utf16Str.length;
             var words = [];
@@ -2992,29 +3743,50 @@ function requireEncUtf16() {
           return word << 8 & 4278255360 | word >>> 8 & 16711935;
         }
       })();
-      return CryptoJS2.enc.Utf16;
+      return CryptoJS.enc.Utf16;
     });
   })(encUtf16);
-  return encUtf16.exports;
+  return encUtf16Exports;
 }
-var encBase64 = { exports: {} };
+var encBase64Exports = {};
+var encBase64 = {
+  get exports() {
+    return encBase64Exports;
+  },
+  set exports(v) {
+    encBase64Exports = v;
+  }
+};
 var hasRequiredEncBase64;
 function requireEncBase64() {
   if (hasRequiredEncBase64)
-    return encBase64.exports;
+    return encBase64Exports;
   hasRequiredEncBase64 = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var C_enc = C.enc;
         C_enc.Base64 = {
+          /**
+           * Converts a word array to a Base64 string.
+           *
+           * @param {WordArray} wordArray The word array.
+           *
+           * @return {string} The Base64 string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var base64String = CryptoJS.enc.Base64.stringify(wordArray);
+           */
           stringify: function(wordArray) {
             var words = wordArray.words;
             var sigBytes = wordArray.sigBytes;
@@ -3038,6 +3810,19 @@ function requireEncBase64() {
             }
             return base64Chars.join("");
           },
+          /**
+           * Converts a Base64 string to a word array.
+           *
+           * @param {string} base64Str The Base64 string.
+           *
+           * @return {WordArray} The word array.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.enc.Base64.parse(base64String);
+           */
           parse: function(base64Str) {
             var base64StrLength = base64Str.length;
             var map = this._map;
@@ -3074,29 +3859,52 @@ function requireEncBase64() {
           return WordArray.create(words, nBytes);
         }
       })();
-      return CryptoJS2.enc.Base64;
+      return CryptoJS.enc.Base64;
     });
   })(encBase64);
-  return encBase64.exports;
+  return encBase64Exports;
 }
-var encBase64url = { exports: {} };
+var encBase64urlExports = {};
+var encBase64url = {
+  get exports() {
+    return encBase64urlExports;
+  },
+  set exports(v) {
+    encBase64urlExports = v;
+  }
+};
 var hasRequiredEncBase64url;
 function requireEncBase64url() {
   if (hasRequiredEncBase64url)
-    return encBase64url.exports;
+    return encBase64urlExports;
   hasRequiredEncBase64url = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var C_enc = C.enc;
         C_enc.Base64url = {
+          /**
+           * Converts a word array to a Base64url string.
+           *
+           * @param {WordArray} wordArray The word array.
+           *
+           * @param {boolean} urlSafe Whether to use url safe
+           *
+           * @return {string} The Base64url string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var base64String = CryptoJS.enc.Base64url.stringify(wordArray);
+           */
           stringify: function(wordArray, urlSafe = true) {
             var words = wordArray.words;
             var sigBytes = wordArray.sigBytes;
@@ -3120,6 +3928,21 @@ function requireEncBase64url() {
             }
             return base64Chars.join("");
           },
+          /**
+           * Converts a Base64url string to a word array.
+           *
+           * @param {string} base64Str The Base64url string.
+           *
+           * @param {boolean} urlSafe Whether to use url safe
+           *
+           * @return {WordArray} The word array.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var wordArray = CryptoJS.enc.Base64url.parse(base64String);
+           */
           parse: function(base64Str, urlSafe = true) {
             var base64StrLength = base64Str.length;
             var map = urlSafe ? this._safe_map : this._map;
@@ -3157,25 +3980,33 @@ function requireEncBase64url() {
           return WordArray.create(words, nBytes);
         }
       })();
-      return CryptoJS2.enc.Base64url;
+      return CryptoJS.enc.Base64url;
     });
   })(encBase64url);
-  return encBase64url.exports;
+  return encBase64urlExports;
 }
-var md5 = { exports: {} };
+var md5Exports = {};
+var md5 = {
+  get exports() {
+    return md5Exports;
+  },
+  set exports(v) {
+    md5Exports = v;
+  }
+};
 var hasRequiredMd5;
 function requireMd5() {
   if (hasRequiredMd5)
-    return md5.exports;
+    return md5Exports;
   hasRequiredMd5 = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function(Math2) {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var Hasher = C_lib.Hasher;
@@ -3336,25 +4167,33 @@ function requireMd5() {
         C.MD5 = Hasher._createHelper(MD5);
         C.HmacMD5 = Hasher._createHmacHelper(MD5);
       })(Math);
-      return CryptoJS2.MD5;
+      return CryptoJS.MD5;
     });
   })(md5);
-  return md5.exports;
+  return md5Exports;
 }
-var sha1 = { exports: {} };
+var sha1Exports = {};
+var sha1 = {
+  get exports() {
+    return sha1Exports;
+  },
+  set exports(v) {
+    sha1Exports = v;
+  }
+};
 var hasRequiredSha1;
 function requireSha1() {
   if (hasRequiredSha1)
-    return sha1.exports;
+    return sha1Exports;
   hasRequiredSha1 = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var Hasher = C_lib.Hasher;
@@ -3427,25 +4266,33 @@ function requireSha1() {
         C.SHA1 = Hasher._createHelper(SHA1);
         C.HmacSHA1 = Hasher._createHmacHelper(SHA1);
       })();
-      return CryptoJS2.SHA1;
+      return CryptoJS.SHA1;
     });
   })(sha1);
-  return sha1.exports;
+  return sha1Exports;
 }
-var sha256 = { exports: {} };
+var sha256Exports = {};
+var sha256 = {
+  get exports() {
+    return sha256Exports;
+  },
+  set exports(v) {
+    sha256Exports = v;
+  }
+};
 var hasRequiredSha256;
 function requireSha256() {
   if (hasRequiredSha256)
-    return sha256.exports;
+    return sha256Exports;
   hasRequiredSha256 = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function(Math2) {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var Hasher = C_lib.Hasher;
@@ -3548,25 +4395,33 @@ function requireSha256() {
         C.SHA256 = Hasher._createHelper(SHA256);
         C.HmacSHA256 = Hasher._createHmacHelper(SHA256);
       })(Math);
-      return CryptoJS2.SHA256;
+      return CryptoJS.SHA256;
     });
   })(sha256);
-  return sha256.exports;
+  return sha256Exports;
 }
-var sha224 = { exports: {} };
+var sha224Exports = {};
+var sha224 = {
+  get exports() {
+    return sha224Exports;
+  },
+  set exports(v) {
+    sha224Exports = v;
+  }
+};
 var hasRequiredSha224;
 function requireSha224() {
   if (hasRequiredSha224)
-    return sha224.exports;
+    return sha224Exports;
   hasRequiredSha224 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireSha256());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var C_algo = C.algo;
@@ -3593,25 +4448,33 @@ function requireSha224() {
         C.SHA224 = SHA256._createHelper(SHA224);
         C.HmacSHA224 = SHA256._createHmacHelper(SHA224);
       })();
-      return CryptoJS2.SHA224;
+      return CryptoJS.SHA224;
     });
   })(sha224);
-  return sha224.exports;
+  return sha224Exports;
 }
-var sha512 = { exports: {} };
+var sha512Exports = {};
+var sha512 = {
+  get exports() {
+    return sha512Exports;
+  },
+  set exports(v) {
+    sha512Exports = v;
+  }
+};
 var hasRequiredSha512;
 function requireSha512() {
   if (hasRequiredSha512)
-    return sha512.exports;
+    return sha512Exports;
   hasRequiredSha512 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireX64Core());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var Hasher = C_lib.Hasher;
         var C_x64 = C.x64;
@@ -3875,25 +4738,33 @@ function requireSha512() {
         C.SHA512 = Hasher._createHelper(SHA512);
         C.HmacSHA512 = Hasher._createHmacHelper(SHA512);
       })();
-      return CryptoJS2.SHA512;
+      return CryptoJS.SHA512;
     });
   })(sha512);
-  return sha512.exports;
+  return sha512Exports;
 }
-var sha384 = { exports: {} };
+var sha384Exports = {};
+var sha384 = {
+  get exports() {
+    return sha384Exports;
+  },
+  set exports(v) {
+    sha384Exports = v;
+  }
+};
 var hasRequiredSha384;
 function requireSha384() {
   if (hasRequiredSha384)
-    return sha384.exports;
+    return sha384Exports;
   hasRequiredSha384 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireX64Core(), requireSha512());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_x64 = C.x64;
         var X64Word = C_x64.Word;
         var X64WordArray = C_x64.WordArray;
@@ -3921,25 +4792,33 @@ function requireSha384() {
         C.SHA384 = SHA512._createHelper(SHA384);
         C.HmacSHA384 = SHA512._createHmacHelper(SHA384);
       })();
-      return CryptoJS2.SHA384;
+      return CryptoJS.SHA384;
     });
   })(sha384);
-  return sha384.exports;
+  return sha384Exports;
 }
-var sha3 = { exports: {} };
+var sha3Exports = {};
+var sha3 = {
+  get exports() {
+    return sha3Exports;
+  },
+  set exports(v) {
+    sha3Exports = v;
+  }
+};
 var hasRequiredSha3;
 function requireSha3() {
   if (hasRequiredSha3)
-    return sha3.exports;
+    return sha3Exports;
   hasRequiredSha3 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireX64Core());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function(Math2) {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var Hasher = C_lib.Hasher;
@@ -3992,6 +4871,14 @@ function requireSha3() {
           }
         })();
         var SHA3 = C_algo.SHA3 = Hasher.extend({
+          /**
+           * Configuration options.
+           *
+           * @property {number} outputLength
+           *   The desired number of bits in the output hash.
+           *   Only values permitted are: 224, 256, 384, 512.
+           *   Default: 512
+           */
           cfg: Hasher.cfg.extend({
             outputLength: 512
           }),
@@ -4115,23 +5002,31 @@ function requireSha3() {
         C.SHA3 = Hasher._createHelper(SHA3);
         C.HmacSHA3 = Hasher._createHmacHelper(SHA3);
       })(Math);
-      return CryptoJS2.SHA3;
+      return CryptoJS.SHA3;
     });
   })(sha3);
-  return sha3.exports;
+  return sha3Exports;
 }
-var ripemd160 = { exports: {} };
+var ripemd160Exports = {};
+var ripemd160 = {
+  get exports() {
+    return ripemd160Exports;
+  },
+  set exports(v) {
+    ripemd160Exports = v;
+  }
+};
 var hasRequiredRipemd160;
 function requireRipemd160() {
   if (hasRequiredRipemd160)
-    return ripemd160.exports;
+    return ripemd160Exports;
   hasRequiredRipemd160 = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       /** @preserve
       			(c) 2012 by Cédric Mesnil. All rights reserved.
       
@@ -4143,7 +5038,7 @@ function requireRipemd160() {
       			THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       			*/
       (function(Math2) {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var Hasher = C_lib.Hasher;
@@ -4596,31 +5491,49 @@ function requireRipemd160() {
         C.RIPEMD160 = Hasher._createHelper(RIPEMD160);
         C.HmacRIPEMD160 = Hasher._createHmacHelper(RIPEMD160);
       })();
-      return CryptoJS2.RIPEMD160;
+      return CryptoJS.RIPEMD160;
     });
   })(ripemd160);
-  return ripemd160.exports;
+  return ripemd160Exports;
 }
-var hmac = { exports: {} };
+var hmacExports = {};
+var hmac = {
+  get exports() {
+    return hmacExports;
+  },
+  set exports(v) {
+    hmacExports = v;
+  }
+};
 var hasRequiredHmac;
 function requireHmac() {
   if (hasRequiredHmac)
-    return hmac.exports;
+    return hmacExports;
   hasRequiredHmac = 1;
   (function(module, exports) {
     (function(root, factory) {
       {
         module.exports = factory(requireCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var Base = C_lib.Base;
         var C_enc = C.enc;
         var Utf8 = C_enc.Utf8;
         var C_algo = C.algo;
         C_algo.HMAC = Base.extend({
+          /**
+           * Initializes a newly created HMAC.
+           *
+           * @param {Hasher} hasher The hash algorithm to use.
+           * @param {WordArray|string} key The secret key.
+           *
+           * @example
+           *
+           *     var hmacHasher = CryptoJS.algo.HMAC.create(CryptoJS.algo.SHA256, key);
+           */
           init: function(hasher, key) {
             hasher = this._hasher = new hasher.init();
             if (typeof key == "string") {
@@ -4643,15 +5556,48 @@ function requireHmac() {
             oKey.sigBytes = iKey.sigBytes = hasherBlockSizeBytes;
             this.reset();
           },
+          /**
+           * Resets this HMAC to its initial state.
+           *
+           * @example
+           *
+           *     hmacHasher.reset();
+           */
           reset: function() {
             var hasher = this._hasher;
             hasher.reset();
             hasher.update(this._iKey);
           },
+          /**
+           * Updates this HMAC with a message.
+           *
+           * @param {WordArray|string} messageUpdate The message to append.
+           *
+           * @return {HMAC} This HMAC instance.
+           *
+           * @example
+           *
+           *     hmacHasher.update('message');
+           *     hmacHasher.update(wordArray);
+           */
           update: function(messageUpdate) {
             this._hasher.update(messageUpdate);
             return this;
           },
+          /**
+           * Finalizes the HMAC computation.
+           * Note that the finalize operation is effectively a destructive, read-once operation.
+           *
+           * @param {WordArray|string} messageUpdate (Optional) A final message update.
+           *
+           * @return {WordArray} The HMAC.
+           *
+           * @example
+           *
+           *     var hmac = hmacHasher.finalize();
+           *     var hmac = hmacHasher.finalize('message');
+           *     var hmac = hmacHasher.finalize(wordArray);
+           */
           finalize: function(messageUpdate) {
             var hasher = this._hasher;
             var innerHash = hasher.finalize(messageUpdate);
@@ -4663,22 +5609,30 @@ function requireHmac() {
       })();
     });
   })(hmac);
-  return hmac.exports;
+  return hmacExports;
 }
-var pbkdf2 = { exports: {} };
+var pbkdf2Exports = {};
+var pbkdf2 = {
+  get exports() {
+    return pbkdf2Exports;
+  },
+  set exports(v) {
+    pbkdf2Exports = v;
+  }
+};
 var hasRequiredPbkdf2;
 function requirePbkdf2() {
   if (hasRequiredPbkdf2)
-    return pbkdf2.exports;
+    return pbkdf2Exports;
   hasRequiredPbkdf2 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireSha1(), requireHmac());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var Base = C_lib.Base;
         var WordArray = C_lib.WordArray;
@@ -4686,14 +5640,44 @@ function requirePbkdf2() {
         var SHA1 = C_algo.SHA1;
         var HMAC = C_algo.HMAC;
         var PBKDF2 = C_algo.PBKDF2 = Base.extend({
+          /**
+           * Configuration options.
+           *
+           * @property {number} keySize The key size in words to generate. Default: 4 (128 bits)
+           * @property {Hasher} hasher The hasher to use. Default: SHA1
+           * @property {number} iterations The number of iterations to perform. Default: 1
+           */
           cfg: Base.extend({
             keySize: 128 / 32,
             hasher: SHA1,
             iterations: 1
           }),
+          /**
+           * Initializes a newly created key derivation function.
+           *
+           * @param {Object} cfg (Optional) The configuration options to use for the derivation.
+           *
+           * @example
+           *
+           *     var kdf = CryptoJS.algo.PBKDF2.create();
+           *     var kdf = CryptoJS.algo.PBKDF2.create({ keySize: 8 });
+           *     var kdf = CryptoJS.algo.PBKDF2.create({ keySize: 8, iterations: 1000 });
+           */
           init: function(cfg) {
             this.cfg = this.cfg.extend(cfg);
           },
+          /**
+           * Computes the Password-Based Key Derivation Function 2.
+           *
+           * @param {WordArray|string} password The password.
+           * @param {WordArray|string} salt A salt.
+           *
+           * @return {WordArray} The derived key.
+           *
+           * @example
+           *
+           *     var key = kdf.compute(password, salt);
+           */
           compute: function(password, salt) {
             var cfg = this.cfg;
             var hmac2 = HMAC.create(cfg.hasher, password);
@@ -4728,39 +5712,77 @@ function requirePbkdf2() {
           return PBKDF2.create(cfg).compute(password, salt);
         };
       })();
-      return CryptoJS2.PBKDF2;
+      return CryptoJS.PBKDF2;
     });
   })(pbkdf2);
-  return pbkdf2.exports;
+  return pbkdf2Exports;
 }
-var evpkdf = { exports: {} };
+var evpkdfExports = {};
+var evpkdf = {
+  get exports() {
+    return evpkdfExports;
+  },
+  set exports(v) {
+    evpkdfExports = v;
+  }
+};
 var hasRequiredEvpkdf;
 function requireEvpkdf() {
   if (hasRequiredEvpkdf)
-    return evpkdf.exports;
+    return evpkdfExports;
   hasRequiredEvpkdf = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireSha1(), requireHmac());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var Base = C_lib.Base;
         var WordArray = C_lib.WordArray;
         var C_algo = C.algo;
         var MD5 = C_algo.MD5;
         var EvpKDF = C_algo.EvpKDF = Base.extend({
+          /**
+           * Configuration options.
+           *
+           * @property {number} keySize The key size in words to generate. Default: 4 (128 bits)
+           * @property {Hasher} hasher The hash algorithm to use. Default: MD5
+           * @property {number} iterations The number of iterations to perform. Default: 1
+           */
           cfg: Base.extend({
             keySize: 128 / 32,
             hasher: MD5,
             iterations: 1
           }),
+          /**
+           * Initializes a newly created key derivation function.
+           *
+           * @param {Object} cfg (Optional) The configuration options to use for the derivation.
+           *
+           * @example
+           *
+           *     var kdf = CryptoJS.algo.EvpKDF.create();
+           *     var kdf = CryptoJS.algo.EvpKDF.create({ keySize: 8 });
+           *     var kdf = CryptoJS.algo.EvpKDF.create({ keySize: 8, iterations: 1000 });
+           */
           init: function(cfg) {
             this.cfg = this.cfg.extend(cfg);
           },
+          /**
+           * Derives a key from a password.
+           *
+           * @param {WordArray|string} password The password.
+           * @param {WordArray|string} salt A salt.
+           *
+           * @return {WordArray} The derived key.
+           *
+           * @example
+           *
+           *     var key = kdf.compute(password, salt);
+           */
           compute: function(password, salt) {
             var block;
             var cfg = this.cfg;
@@ -4789,25 +5811,33 @@ function requireEvpkdf() {
           return EvpKDF.create(cfg).compute(password, salt);
         };
       })();
-      return CryptoJS2.EvpKDF;
+      return CryptoJS.EvpKDF;
     });
   })(evpkdf);
-  return evpkdf.exports;
+  return evpkdfExports;
 }
-var cipherCore = { exports: {} };
+var cipherCoreExports = {};
+var cipherCore = {
+  get exports() {
+    return cipherCoreExports;
+  },
+  set exports(v) {
+    cipherCoreExports = v;
+  }
+};
 var hasRequiredCipherCore;
 function requireCipherCore() {
   if (hasRequiredCipherCore)
-    return cipherCore.exports;
+    return cipherCoreExports;
   hasRequiredCipherCore = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireEvpkdf());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.lib.Cipher || function(undefined$1) {
-        var C = CryptoJS2;
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.lib.Cipher || function(undefined$1) {
+        var C = CryptoJS;
         var C_lib = C.lib;
         var Base = C_lib.Base;
         var WordArray = C_lib.WordArray;
@@ -4818,27 +5848,104 @@ function requireCipherCore() {
         var C_algo = C.algo;
         var EvpKDF = C_algo.EvpKDF;
         var Cipher = C_lib.Cipher = BufferedBlockAlgorithm.extend({
+          /**
+           * Configuration options.
+           *
+           * @property {WordArray} iv The IV to use for this operation.
+           */
           cfg: Base.extend(),
+          /**
+           * Creates this cipher in encryption mode.
+           *
+           * @param {WordArray} key The key.
+           * @param {Object} cfg (Optional) The configuration options to use for this operation.
+           *
+           * @return {Cipher} A cipher instance.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var cipher = CryptoJS.algo.AES.createEncryptor(keyWordArray, { iv: ivWordArray });
+           */
           createEncryptor: function(key, cfg) {
             return this.create(this._ENC_XFORM_MODE, key, cfg);
           },
+          /**
+           * Creates this cipher in decryption mode.
+           *
+           * @param {WordArray} key The key.
+           * @param {Object} cfg (Optional) The configuration options to use for this operation.
+           *
+           * @return {Cipher} A cipher instance.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var cipher = CryptoJS.algo.AES.createDecryptor(keyWordArray, { iv: ivWordArray });
+           */
           createDecryptor: function(key, cfg) {
             return this.create(this._DEC_XFORM_MODE, key, cfg);
           },
+          /**
+           * Initializes a newly created cipher.
+           *
+           * @param {number} xformMode Either the encryption or decryption transormation mode constant.
+           * @param {WordArray} key The key.
+           * @param {Object} cfg (Optional) The configuration options to use for this operation.
+           *
+           * @example
+           *
+           *     var cipher = CryptoJS.algo.AES.create(CryptoJS.algo.AES._ENC_XFORM_MODE, keyWordArray, { iv: ivWordArray });
+           */
           init: function(xformMode, key, cfg) {
             this.cfg = this.cfg.extend(cfg);
             this._xformMode = xformMode;
             this._key = key;
             this.reset();
           },
+          /**
+           * Resets this cipher to its initial state.
+           *
+           * @example
+           *
+           *     cipher.reset();
+           */
           reset: function() {
             BufferedBlockAlgorithm.reset.call(this);
             this._doReset();
           },
+          /**
+           * Adds data to be encrypted or decrypted.
+           *
+           * @param {WordArray|string} dataUpdate The data to encrypt or decrypt.
+           *
+           * @return {WordArray} The data after processing.
+           *
+           * @example
+           *
+           *     var encrypted = cipher.process('data');
+           *     var encrypted = cipher.process(wordArray);
+           */
           process: function(dataUpdate) {
             this._append(dataUpdate);
             return this._process();
           },
+          /**
+           * Finalizes the encryption or decryption process.
+           * Note that the finalize operation is effectively a destructive, read-once operation.
+           *
+           * @param {WordArray|string} dataUpdate The final data to encrypt or decrypt.
+           *
+           * @return {WordArray} The data after final processing.
+           *
+           * @example
+           *
+           *     var encrypted = cipher.finalize();
+           *     var encrypted = cipher.finalize('data');
+           *     var encrypted = cipher.finalize(wordArray);
+           */
           finalize: function(dataUpdate) {
             if (dataUpdate) {
               this._append(dataUpdate);
@@ -4850,6 +5957,19 @@ function requireCipherCore() {
           ivSize: 128 / 32,
           _ENC_XFORM_MODE: 1,
           _DEC_XFORM_MODE: 2,
+          /**
+           * Creates shortcut functions to a cipher's object interface.
+           *
+           * @param {Cipher} cipher The cipher to create a helper for.
+           *
+           * @return {Object} An object with encrypt and decrypt shortcut functions.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var AES = CryptoJS.lib.Cipher._createHelper(CryptoJS.algo.AES);
+           */
           _createHelper: function() {
             function selectCipherStrategy(key) {
               if (typeof key == "string") {
@@ -4879,12 +5999,46 @@ function requireCipherCore() {
         });
         var C_mode = C.mode = {};
         var BlockCipherMode = C_lib.BlockCipherMode = Base.extend({
+          /**
+           * Creates this mode for encryption.
+           *
+           * @param {Cipher} cipher A block cipher instance.
+           * @param {Array} iv The IV words.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var mode = CryptoJS.mode.CBC.createEncryptor(cipher, iv.words);
+           */
           createEncryptor: function(cipher, iv) {
             return this.Encryptor.create(cipher, iv);
           },
+          /**
+           * Creates this mode for decryption.
+           *
+           * @param {Cipher} cipher A block cipher instance.
+           * @param {Array} iv The IV words.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var mode = CryptoJS.mode.CBC.createDecryptor(cipher, iv.words);
+           */
           createDecryptor: function(cipher, iv) {
             return this.Decryptor.create(cipher, iv);
           },
+          /**
+           * Initializes a newly created mode.
+           *
+           * @param {Cipher} cipher A block cipher instance.
+           * @param {Array} iv The IV words.
+           *
+           * @example
+           *
+           *     var mode = CryptoJS.mode.CBC.Encryptor.create(cipher, iv.words);
+           */
           init: function(cipher, iv) {
             this._cipher = cipher;
             this._iv = iv;
@@ -4893,6 +6047,16 @@ function requireCipherCore() {
         var CBC = C_mode.CBC = function() {
           var CBC2 = BlockCipherMode.extend();
           CBC2.Encryptor = CBC2.extend({
+            /**
+             * Processes the data block at offset.
+             *
+             * @param {Array} words The data words to operate on.
+             * @param {number} offset The offset where the block starts.
+             *
+             * @example
+             *
+             *     mode.processBlock(data.words, offset);
+             */
             processBlock: function(words, offset) {
               var cipher = this._cipher;
               var blockSize = cipher.blockSize;
@@ -4902,6 +6066,16 @@ function requireCipherCore() {
             }
           });
           CBC2.Decryptor = CBC2.extend({
+            /**
+             * Processes the data block at offset.
+             *
+             * @param {Array} words The data words to operate on.
+             * @param {number} offset The offset where the block starts.
+             *
+             * @example
+             *
+             *     mode.processBlock(data.words, offset);
+             */
             processBlock: function(words, offset) {
               var cipher = this._cipher;
               var blockSize = cipher.blockSize;
@@ -4928,6 +6102,18 @@ function requireCipherCore() {
         }();
         var C_pad = C.pad = {};
         var Pkcs7 = C_pad.Pkcs7 = {
+          /**
+           * Pads data using the algorithm defined in PKCS #5/7.
+           *
+           * @param {WordArray} data The data to pad.
+           * @param {number} blockSize The multiple that the data should be padded to.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     CryptoJS.pad.Pkcs7.pad(wordArray, 4);
+           */
           pad: function(data, blockSize) {
             var blockSizeBytes = blockSize * 4;
             var nPaddingBytes = blockSizeBytes - data.sigBytes % blockSizeBytes;
@@ -4939,12 +6125,29 @@ function requireCipherCore() {
             var padding = WordArray.create(paddingWords, nPaddingBytes);
             data.concat(padding);
           },
+          /**
+           * Unpads data that had been padded using the algorithm defined in PKCS #5/7.
+           *
+           * @param {WordArray} data The data to unpad.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     CryptoJS.pad.Pkcs7.unpad(wordArray);
+           */
           unpad: function(data) {
             var nPaddingBytes = data.words[data.sigBytes - 1 >>> 2] & 255;
             data.sigBytes -= nPaddingBytes;
           }
         };
         C_lib.BlockCipher = Cipher.extend({
+          /**
+           * Configuration options.
+           *
+           * @property {Mode} mode The block mode to use. Default: CBC
+           * @property {Padding} padding The padding strategy to use. Default: Pkcs7
+           */
           cfg: Cipher.cfg.extend({
             mode: CBC,
             padding: Pkcs7
@@ -4986,15 +6189,62 @@ function requireCipherCore() {
           blockSize: 128 / 32
         });
         var CipherParams = C_lib.CipherParams = Base.extend({
+          /**
+           * Initializes a newly created cipher params object.
+           *
+           * @param {Object} cipherParams An object with any of the possible cipher parameters.
+           *
+           * @example
+           *
+           *     var cipherParams = CryptoJS.lib.CipherParams.create({
+           *         ciphertext: ciphertextWordArray,
+           *         key: keyWordArray,
+           *         iv: ivWordArray,
+           *         salt: saltWordArray,
+           *         algorithm: CryptoJS.algo.AES,
+           *         mode: CryptoJS.mode.CBC,
+           *         padding: CryptoJS.pad.PKCS7,
+           *         blockSize: 4,
+           *         formatter: CryptoJS.format.OpenSSL
+           *     });
+           */
           init: function(cipherParams) {
             this.mixIn(cipherParams);
           },
+          /**
+           * Converts this cipher params object to a string.
+           *
+           * @param {Format} formatter (Optional) The formatting strategy to use.
+           *
+           * @return {string} The stringified cipher params.
+           *
+           * @throws Error If neither the formatter nor the default formatter is set.
+           *
+           * @example
+           *
+           *     var string = cipherParams + '';
+           *     var string = cipherParams.toString();
+           *     var string = cipherParams.toString(CryptoJS.format.OpenSSL);
+           */
           toString: function(formatter) {
             return (formatter || this.formatter).stringify(this);
           }
         });
         var C_format = C.format = {};
         var OpenSSLFormatter = C_format.OpenSSL = {
+          /**
+           * Converts a cipher params object to an OpenSSL-compatible string.
+           *
+           * @param {CipherParams} cipherParams The cipher params object.
+           *
+           * @return {string} The OpenSSL-compatible string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var openSSLString = CryptoJS.format.OpenSSL.stringify(cipherParams);
+           */
           stringify: function(cipherParams) {
             var wordArray;
             var ciphertext = cipherParams.ciphertext;
@@ -5006,6 +6256,19 @@ function requireCipherCore() {
             }
             return wordArray.toString(Base64);
           },
+          /**
+           * Converts an OpenSSL-compatible string to a cipher params object.
+           *
+           * @param {string} openSSLStr The OpenSSL-compatible string.
+           *
+           * @return {CipherParams} The cipher params object.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var cipherParams = CryptoJS.format.OpenSSL.parse(openSSLString);
+           */
           parse: function(openSSLStr) {
             var salt;
             var ciphertext = Base64.parse(openSSLStr);
@@ -5019,9 +6282,32 @@ function requireCipherCore() {
           }
         };
         var SerializableCipher = C_lib.SerializableCipher = Base.extend({
+          /**
+           * Configuration options.
+           *
+           * @property {Formatter} format The formatting strategy to convert cipher param objects to and from a string. Default: OpenSSL
+           */
           cfg: Base.extend({
             format: OpenSSLFormatter
           }),
+          /**
+           * Encrypts a message.
+           *
+           * @param {Cipher} cipher The cipher algorithm to use.
+           * @param {WordArray|string} message The message to encrypt.
+           * @param {WordArray} key The key.
+           * @param {Object} cfg (Optional) The configuration options to use for this operation.
+           *
+           * @return {CipherParams} A cipher params object.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var ciphertextParams = CryptoJS.lib.SerializableCipher.encrypt(CryptoJS.algo.AES, message, key);
+           *     var ciphertextParams = CryptoJS.lib.SerializableCipher.encrypt(CryptoJS.algo.AES, message, key, { iv: iv });
+           *     var ciphertextParams = CryptoJS.lib.SerializableCipher.encrypt(CryptoJS.algo.AES, message, key, { iv: iv, format: CryptoJS.format.OpenSSL });
+           */
           encrypt: function(cipher, message, key, cfg) {
             cfg = this.cfg.extend(cfg);
             var encryptor = cipher.createEncryptor(key, cfg);
@@ -5038,12 +6324,44 @@ function requireCipherCore() {
               formatter: cfg.format
             });
           },
+          /**
+           * Decrypts serialized ciphertext.
+           *
+           * @param {Cipher} cipher The cipher algorithm to use.
+           * @param {CipherParams|string} ciphertext The ciphertext to decrypt.
+           * @param {WordArray} key The key.
+           * @param {Object} cfg (Optional) The configuration options to use for this operation.
+           *
+           * @return {WordArray} The plaintext.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var plaintext = CryptoJS.lib.SerializableCipher.decrypt(CryptoJS.algo.AES, formattedCiphertext, key, { iv: iv, format: CryptoJS.format.OpenSSL });
+           *     var plaintext = CryptoJS.lib.SerializableCipher.decrypt(CryptoJS.algo.AES, ciphertextParams, key, { iv: iv, format: CryptoJS.format.OpenSSL });
+           */
           decrypt: function(cipher, ciphertext, key, cfg) {
             cfg = this.cfg.extend(cfg);
             ciphertext = this._parse(ciphertext, cfg.format);
             var plaintext = cipher.createDecryptor(key, cfg).finalize(ciphertext.ciphertext);
             return plaintext;
           },
+          /**
+           * Converts serialized ciphertext to CipherParams,
+           * else assumed CipherParams already and returns ciphertext unchanged.
+           *
+           * @param {CipherParams|string} ciphertext The ciphertext.
+           * @param {Formatter} format The formatting strategy to use to parse serialized ciphertext.
+           *
+           * @return {CipherParams} The unserialized ciphertext.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var ciphertextParams = CryptoJS.lib.SerializableCipher._parse(ciphertextStringOrParams, format);
+           */
           _parse: function(ciphertext, format) {
             if (typeof ciphertext == "string") {
               return format.parse(ciphertext, this);
@@ -5054,6 +6372,23 @@ function requireCipherCore() {
         });
         var C_kdf = C.kdf = {};
         var OpenSSLKdf = C_kdf.OpenSSL = {
+          /**
+           * Derives a key and IV from a password.
+           *
+           * @param {string} password The password to derive from.
+           * @param {number} keySize The size in words of the key to generate.
+           * @param {number} ivSize The size in words of the IV to generate.
+           * @param {WordArray|string} salt (Optional) A 64-bit salt to use. If omitted, a salt will be generated randomly.
+           *
+           * @return {CipherParams} A cipher params object with the key, IV, and salt.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var derivedParams = CryptoJS.kdf.OpenSSL.execute('Password', 256/32, 128/32);
+           *     var derivedParams = CryptoJS.kdf.OpenSSL.execute('Password', 256/32, 128/32, 'saltsalt');
+           */
           execute: function(password, keySize, ivSize, salt) {
             if (!salt) {
               salt = WordArray.random(64 / 8);
@@ -5065,9 +6400,31 @@ function requireCipherCore() {
           }
         };
         var PasswordBasedCipher = C_lib.PasswordBasedCipher = SerializableCipher.extend({
+          /**
+           * Configuration options.
+           *
+           * @property {KDF} kdf The key derivation function to use to generate a key and IV from a password. Default: OpenSSL
+           */
           cfg: SerializableCipher.cfg.extend({
             kdf: OpenSSLKdf
           }),
+          /**
+           * Encrypts a message using a password.
+           *
+           * @param {Cipher} cipher The cipher algorithm to use.
+           * @param {WordArray|string} message The message to encrypt.
+           * @param {string} password The password.
+           * @param {Object} cfg (Optional) The configuration options to use for this operation.
+           *
+           * @return {CipherParams} A cipher params object.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var ciphertextParams = CryptoJS.lib.PasswordBasedCipher.encrypt(CryptoJS.algo.AES, message, 'password');
+           *     var ciphertextParams = CryptoJS.lib.PasswordBasedCipher.encrypt(CryptoJS.algo.AES, message, 'password', { format: CryptoJS.format.OpenSSL });
+           */
           encrypt: function(cipher, message, password, cfg) {
             cfg = this.cfg.extend(cfg);
             var derivedParams = cfg.kdf.execute(password, cipher.keySize, cipher.ivSize);
@@ -5076,6 +6433,23 @@ function requireCipherCore() {
             ciphertext.mixIn(derivedParams);
             return ciphertext;
           },
+          /**
+           * Decrypts serialized ciphertext using a password.
+           *
+           * @param {Cipher} cipher The cipher algorithm to use.
+           * @param {CipherParams|string} ciphertext The ciphertext to decrypt.
+           * @param {string} password The password.
+           * @param {Object} cfg (Optional) The configuration options to use for this operation.
+           *
+           * @return {WordArray} The plaintext.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var plaintext = CryptoJS.lib.PasswordBasedCipher.decrypt(CryptoJS.algo.AES, formattedCiphertext, 'password', { format: CryptoJS.format.OpenSSL });
+           *     var plaintext = CryptoJS.lib.PasswordBasedCipher.decrypt(CryptoJS.algo.AES, ciphertextParams, 'password', { format: CryptoJS.format.OpenSSL });
+           */
           decrypt: function(cipher, ciphertext, password, cfg) {
             cfg = this.cfg.extend(cfg);
             ciphertext = this._parse(ciphertext, cfg.format);
@@ -5088,22 +6462,30 @@ function requireCipherCore() {
       }();
     });
   })(cipherCore);
-  return cipherCore.exports;
+  return cipherCoreExports;
 }
-var modeCfb = { exports: {} };
+var modeCfbExports = {};
+var modeCfb = {
+  get exports() {
+    return modeCfbExports;
+  },
+  set exports(v) {
+    modeCfbExports = v;
+  }
+};
 var hasRequiredModeCfb;
 function requireModeCfb() {
   if (hasRequiredModeCfb)
-    return modeCfb.exports;
+    return modeCfbExports;
   hasRequiredModeCfb = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.mode.CFB = function() {
-        var CFB = CryptoJS2.lib.BlockCipherMode.extend();
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.mode.CFB = function() {
+        var CFB = CryptoJS.lib.BlockCipherMode.extend();
         CFB.Encryptor = CFB.extend({
           processBlock: function(words, offset) {
             var cipher = this._cipher;
@@ -5137,25 +6519,33 @@ function requireModeCfb() {
         }
         return CFB;
       }();
-      return CryptoJS2.mode.CFB;
+      return CryptoJS.mode.CFB;
     });
   })(modeCfb);
-  return modeCfb.exports;
+  return modeCfbExports;
 }
-var modeCtr = { exports: {} };
+var modeCtrExports = {};
+var modeCtr = {
+  get exports() {
+    return modeCtrExports;
+  },
+  set exports(v) {
+    modeCtrExports = v;
+  }
+};
 var hasRequiredModeCtr;
 function requireModeCtr() {
   if (hasRequiredModeCtr)
-    return modeCtr.exports;
+    return modeCtrExports;
   hasRequiredModeCtr = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.mode.CTR = function() {
-        var CTR = CryptoJS2.lib.BlockCipherMode.extend();
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.mode.CTR = function() {
+        var CTR = CryptoJS.lib.BlockCipherMode.extend();
         var Encryptor = CTR.Encryptor = CTR.extend({
           processBlock: function(words, offset) {
             var cipher = this._cipher;
@@ -5177,30 +6567,38 @@ function requireModeCtr() {
         CTR.Decryptor = Encryptor;
         return CTR;
       }();
-      return CryptoJS2.mode.CTR;
+      return CryptoJS.mode.CTR;
     });
   })(modeCtr);
-  return modeCtr.exports;
+  return modeCtrExports;
 }
-var modeCtrGladman = { exports: {} };
+var modeCtrGladmanExports = {};
+var modeCtrGladman = {
+  get exports() {
+    return modeCtrGladmanExports;
+  },
+  set exports(v) {
+    modeCtrGladmanExports = v;
+  }
+};
 var hasRequiredModeCtrGladman;
 function requireModeCtrGladman() {
   if (hasRequiredModeCtrGladman)
-    return modeCtrGladman.exports;
+    return modeCtrGladmanExports;
   hasRequiredModeCtrGladman = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       /** @preserve
        * Counter block mode compatible with  Dr Brian Gladman fileenc.c
        * derived from CryptoJS.mode.CTR
        * Jan Hruby jhruby.web@gmail.com
        */
-      CryptoJS2.mode.CTRGladman = function() {
-        var CTRGladman = CryptoJS2.lib.BlockCipherMode.extend();
+      CryptoJS.mode.CTRGladman = function() {
+        var CTRGladman = CryptoJS.lib.BlockCipherMode.extend();
         function incWord(word) {
           if ((word >> 24 & 255) === 255) {
             var b1 = word >> 16 & 255;
@@ -5257,25 +6655,33 @@ function requireModeCtrGladman() {
         CTRGladman.Decryptor = Encryptor;
         return CTRGladman;
       }();
-      return CryptoJS2.mode.CTRGladman;
+      return CryptoJS.mode.CTRGladman;
     });
   })(modeCtrGladman);
-  return modeCtrGladman.exports;
+  return modeCtrGladmanExports;
 }
-var modeOfb = { exports: {} };
+var modeOfbExports = {};
+var modeOfb = {
+  get exports() {
+    return modeOfbExports;
+  },
+  set exports(v) {
+    modeOfbExports = v;
+  }
+};
 var hasRequiredModeOfb;
 function requireModeOfb() {
   if (hasRequiredModeOfb)
-    return modeOfb.exports;
+    return modeOfbExports;
   hasRequiredModeOfb = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.mode.OFB = function() {
-        var OFB = CryptoJS2.lib.BlockCipherMode.extend();
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.mode.OFB = function() {
+        var OFB = CryptoJS.lib.BlockCipherMode.extend();
         var Encryptor = OFB.Encryptor = OFB.extend({
           processBlock: function(words, offset) {
             var cipher = this._cipher;
@@ -5295,25 +6701,33 @@ function requireModeOfb() {
         OFB.Decryptor = Encryptor;
         return OFB;
       }();
-      return CryptoJS2.mode.OFB;
+      return CryptoJS.mode.OFB;
     });
   })(modeOfb);
-  return modeOfb.exports;
+  return modeOfbExports;
 }
-var modeEcb = { exports: {} };
+var modeEcbExports = {};
+var modeEcb = {
+  get exports() {
+    return modeEcbExports;
+  },
+  set exports(v) {
+    modeEcbExports = v;
+  }
+};
 var hasRequiredModeEcb;
 function requireModeEcb() {
   if (hasRequiredModeEcb)
-    return modeEcb.exports;
+    return modeEcbExports;
   hasRequiredModeEcb = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.mode.ECB = function() {
-        var ECB = CryptoJS2.lib.BlockCipherMode.extend();
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.mode.ECB = function() {
+        var ECB = CryptoJS.lib.BlockCipherMode.extend();
         ECB.Encryptor = ECB.extend({
           processBlock: function(words, offset) {
             this._cipher.encryptBlock(words, offset);
@@ -5326,24 +6740,32 @@ function requireModeEcb() {
         });
         return ECB;
       }();
-      return CryptoJS2.mode.ECB;
+      return CryptoJS.mode.ECB;
     });
   })(modeEcb);
-  return modeEcb.exports;
+  return modeEcbExports;
 }
-var padAnsix923 = { exports: {} };
+var padAnsix923Exports = {};
+var padAnsix923 = {
+  get exports() {
+    return padAnsix923Exports;
+  },
+  set exports(v) {
+    padAnsix923Exports = v;
+  }
+};
 var hasRequiredPadAnsix923;
 function requirePadAnsix923() {
   if (hasRequiredPadAnsix923)
-    return padAnsix923.exports;
+    return padAnsix923Exports;
   hasRequiredPadAnsix923 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.pad.AnsiX923 = {
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.pad.AnsiX923 = {
         pad: function(data, blockSize) {
           var dataSigBytes = data.sigBytes;
           var blockSizeBytes = blockSize * 4;
@@ -5358,79 +6780,103 @@ function requirePadAnsix923() {
           data.sigBytes -= nPaddingBytes;
         }
       };
-      return CryptoJS2.pad.Ansix923;
+      return CryptoJS.pad.Ansix923;
     });
   })(padAnsix923);
-  return padAnsix923.exports;
+  return padAnsix923Exports;
 }
-var padIso10126 = { exports: {} };
+var padIso10126Exports = {};
+var padIso10126 = {
+  get exports() {
+    return padIso10126Exports;
+  },
+  set exports(v) {
+    padIso10126Exports = v;
+  }
+};
 var hasRequiredPadIso10126;
 function requirePadIso10126() {
   if (hasRequiredPadIso10126)
-    return padIso10126.exports;
+    return padIso10126Exports;
   hasRequiredPadIso10126 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.pad.Iso10126 = {
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.pad.Iso10126 = {
         pad: function(data, blockSize) {
           var blockSizeBytes = blockSize * 4;
           var nPaddingBytes = blockSizeBytes - data.sigBytes % blockSizeBytes;
-          data.concat(CryptoJS2.lib.WordArray.random(nPaddingBytes - 1)).concat(CryptoJS2.lib.WordArray.create([nPaddingBytes << 24], 1));
+          data.concat(CryptoJS.lib.WordArray.random(nPaddingBytes - 1)).concat(CryptoJS.lib.WordArray.create([nPaddingBytes << 24], 1));
         },
         unpad: function(data) {
           var nPaddingBytes = data.words[data.sigBytes - 1 >>> 2] & 255;
           data.sigBytes -= nPaddingBytes;
         }
       };
-      return CryptoJS2.pad.Iso10126;
+      return CryptoJS.pad.Iso10126;
     });
   })(padIso10126);
-  return padIso10126.exports;
+  return padIso10126Exports;
 }
-var padIso97971 = { exports: {} };
+var padIso97971Exports = {};
+var padIso97971 = {
+  get exports() {
+    return padIso97971Exports;
+  },
+  set exports(v) {
+    padIso97971Exports = v;
+  }
+};
 var hasRequiredPadIso97971;
 function requirePadIso97971() {
   if (hasRequiredPadIso97971)
-    return padIso97971.exports;
+    return padIso97971Exports;
   hasRequiredPadIso97971 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.pad.Iso97971 = {
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.pad.Iso97971 = {
         pad: function(data, blockSize) {
-          data.concat(CryptoJS2.lib.WordArray.create([2147483648], 1));
-          CryptoJS2.pad.ZeroPadding.pad(data, blockSize);
+          data.concat(CryptoJS.lib.WordArray.create([2147483648], 1));
+          CryptoJS.pad.ZeroPadding.pad(data, blockSize);
         },
         unpad: function(data) {
-          CryptoJS2.pad.ZeroPadding.unpad(data);
+          CryptoJS.pad.ZeroPadding.unpad(data);
           data.sigBytes--;
         }
       };
-      return CryptoJS2.pad.Iso97971;
+      return CryptoJS.pad.Iso97971;
     });
   })(padIso97971);
-  return padIso97971.exports;
+  return padIso97971Exports;
 }
-var padZeropadding = { exports: {} };
+var padZeropaddingExports = {};
+var padZeropadding = {
+  get exports() {
+    return padZeropaddingExports;
+  },
+  set exports(v) {
+    padZeropaddingExports = v;
+  }
+};
 var hasRequiredPadZeropadding;
 function requirePadZeropadding() {
   if (hasRequiredPadZeropadding)
-    return padZeropadding.exports;
+    return padZeropaddingExports;
   hasRequiredPadZeropadding = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.pad.ZeroPadding = {
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.pad.ZeroPadding = {
         pad: function(data, blockSize) {
           var blockSizeBytes = blockSize * 4;
           data.clamp();
@@ -5447,82 +6893,132 @@ function requirePadZeropadding() {
           }
         }
       };
-      return CryptoJS2.pad.ZeroPadding;
+      return CryptoJS.pad.ZeroPadding;
     });
   })(padZeropadding);
-  return padZeropadding.exports;
+  return padZeropaddingExports;
 }
-var padNopadding = { exports: {} };
+var padNopaddingExports = {};
+var padNopadding = {
+  get exports() {
+    return padNopaddingExports;
+  },
+  set exports(v) {
+    padNopaddingExports = v;
+  }
+};
 var hasRequiredPadNopadding;
 function requirePadNopadding() {
   if (hasRequiredPadNopadding)
-    return padNopadding.exports;
+    return padNopaddingExports;
   hasRequiredPadNopadding = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
-      CryptoJS2.pad.NoPadding = {
+    })(commonjsGlobal, function(CryptoJS) {
+      CryptoJS.pad.NoPadding = {
         pad: function() {
         },
         unpad: function() {
         }
       };
-      return CryptoJS2.pad.NoPadding;
+      return CryptoJS.pad.NoPadding;
     });
   })(padNopadding);
-  return padNopadding.exports;
+  return padNopaddingExports;
 }
-var formatHex = { exports: {} };
+var formatHexExports = {};
+var formatHex = {
+  get exports() {
+    return formatHexExports;
+  },
+  set exports(v) {
+    formatHexExports = v;
+  }
+};
 var hasRequiredFormatHex;
 function requireFormatHex() {
   if (hasRequiredFormatHex)
-    return formatHex.exports;
+    return formatHexExports;
   hasRequiredFormatHex = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function(undefined$1) {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var CipherParams = C_lib.CipherParams;
         var C_enc = C.enc;
         var Hex = C_enc.Hex;
         var C_format = C.format;
         C_format.Hex = {
+          /**
+           * Converts the ciphertext of a cipher params object to a hexadecimally encoded string.
+           *
+           * @param {CipherParams} cipherParams The cipher params object.
+           *
+           * @return {string} The hexadecimally encoded string.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var hexString = CryptoJS.format.Hex.stringify(cipherParams);
+           */
           stringify: function(cipherParams) {
             return cipherParams.ciphertext.toString(Hex);
           },
+          /**
+           * Converts a hexadecimally encoded ciphertext string to a cipher params object.
+           *
+           * @param {string} input The hexadecimally encoded string.
+           *
+           * @return {CipherParams} The cipher params object.
+           *
+           * @static
+           *
+           * @example
+           *
+           *     var cipherParams = CryptoJS.format.Hex.parse(hexString);
+           */
           parse: function(input) {
             var ciphertext = Hex.parse(input);
             return CipherParams.create({ ciphertext });
           }
         };
       })();
-      return CryptoJS2.format.Hex;
+      return CryptoJS.format.Hex;
     });
   })(formatHex);
-  return formatHex.exports;
+  return formatHexExports;
 }
-var aes = { exports: {} };
+var aesExports = {};
+var aes = {
+  get exports() {
+    return aesExports;
+  },
+  set exports(v) {
+    aesExports = v;
+  }
+};
 var hasRequiredAes;
 function requireAes() {
   if (hasRequiredAes)
-    return aes.exports;
+    return aesExports;
   hasRequiredAes = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireEncBase64(), requireMd5(), requireEvpkdf(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var BlockCipher = C_lib.BlockCipher;
         var C_algo = C.algo;
@@ -5658,25 +7154,33 @@ function requireAes() {
         });
         C.AES = BlockCipher._createHelper(AES);
       })();
-      return CryptoJS2.AES;
+      return CryptoJS.AES;
     });
   })(aes);
-  return aes.exports;
+  return aesExports;
 }
-var tripledes = { exports: {} };
+var tripledesExports = {};
+var tripledes = {
+  get exports() {
+    return tripledesExports;
+  },
+  set exports(v) {
+    tripledesExports = v;
+  }
+};
 var hasRequiredTripledes;
 function requireTripledes() {
   if (hasRequiredTripledes)
-    return tripledes.exports;
+    return tripledesExports;
   hasRequiredTripledes = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireEncBase64(), requireMd5(), requireEvpkdf(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var WordArray = C_lib.WordArray;
         var BlockCipher = C_lib.BlockCipher;
@@ -6439,25 +7943,33 @@ function requireTripledes() {
         });
         C.TripleDES = BlockCipher._createHelper(TripleDES);
       })();
-      return CryptoJS2.TripleDES;
+      return CryptoJS.TripleDES;
     });
   })(tripledes);
-  return tripledes.exports;
+  return tripledesExports;
 }
-var rc4 = { exports: {} };
+var rc4Exports = {};
+var rc4 = {
+  get exports() {
+    return rc4Exports;
+  },
+  set exports(v) {
+    rc4Exports = v;
+  }
+};
 var hasRequiredRc4;
 function requireRc4() {
   if (hasRequiredRc4)
-    return rc4.exports;
+    return rc4Exports;
   hasRequiredRc4 = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireEncBase64(), requireMd5(), requireEvpkdf(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var StreamCipher = C_lib.StreamCipher;
         var C_algo = C.algo;
@@ -6505,6 +8017,11 @@ function requireRc4() {
         }
         C.RC4 = StreamCipher._createHelper(RC4);
         var RC4Drop = C_algo.RC4Drop = RC4.extend({
+          /**
+           * Configuration options.
+           *
+           * @property {number} drop The number of keystream words to drop. Default 192
+           */
           cfg: RC4.cfg.extend({
             drop: 192
           }),
@@ -6517,25 +8034,33 @@ function requireRc4() {
         });
         C.RC4Drop = StreamCipher._createHelper(RC4Drop);
       })();
-      return CryptoJS2.RC4;
+      return CryptoJS.RC4;
     });
   })(rc4);
-  return rc4.exports;
+  return rc4Exports;
 }
-var rabbit = { exports: {} };
+var rabbitExports = {};
+var rabbit = {
+  get exports() {
+    return rabbitExports;
+  },
+  set exports(v) {
+    rabbitExports = v;
+  }
+};
 var hasRequiredRabbit;
 function requireRabbit() {
   if (hasRequiredRabbit)
-    return rabbit.exports;
+    return rabbitExports;
   hasRequiredRabbit = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireEncBase64(), requireMd5(), requireEvpkdf(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var StreamCipher = C_lib.StreamCipher;
         var C_algo = C.algo;
@@ -6646,25 +8171,33 @@ function requireRabbit() {
         }
         C.Rabbit = StreamCipher._createHelper(Rabbit);
       })();
-      return CryptoJS2.Rabbit;
+      return CryptoJS.Rabbit;
     });
   })(rabbit);
-  return rabbit.exports;
+  return rabbitExports;
 }
-var rabbitLegacy = { exports: {} };
+var rabbitLegacyExports = {};
+var rabbitLegacy = {
+  get exports() {
+    return rabbitLegacyExports;
+  },
+  set exports(v) {
+    rabbitLegacyExports = v;
+  }
+};
 var hasRequiredRabbitLegacy;
 function requireRabbitLegacy() {
   if (hasRequiredRabbitLegacy)
-    return rabbitLegacy.exports;
+    return rabbitLegacyExports;
   hasRequiredRabbitLegacy = 1;
   (function(module, exports) {
     (function(root, factory, undef) {
       {
         module.exports = factory(requireCore(), requireEncBase64(), requireMd5(), requireEvpkdf(), requireCipherCore());
       }
-    })(commonjsGlobal, function(CryptoJS2) {
+    })(commonjsGlobal, function(CryptoJS) {
       (function() {
-        var C = CryptoJS2;
+        var C = CryptoJS;
         var C_lib = C.lib;
         var StreamCipher = C_lib.StreamCipher;
         var C_algo = C.algo;
@@ -6772,22 +8305,21 @@ function requireRabbitLegacy() {
         }
         C.RabbitLegacy = StreamCipher._createHelper(RabbitLegacy);
       })();
-      return CryptoJS2.RabbitLegacy;
+      return CryptoJS.RabbitLegacy;
     });
   })(rabbitLegacy);
-  return rabbitLegacy.exports;
+  return rabbitLegacyExports;
 }
 (function(module, exports) {
   (function(root, factory, undef) {
     {
       module.exports = factory(requireCore(), requireX64Core(), requireLibTypedarrays(), requireEncUtf16(), requireEncBase64(), requireEncBase64url(), requireMd5(), requireSha1(), requireSha256(), requireSha224(), requireSha512(), requireSha384(), requireSha3(), requireRipemd160(), requireHmac(), requirePbkdf2(), requireEvpkdf(), requireCipherCore(), requireModeCfb(), requireModeCtr(), requireModeCtrGladman(), requireModeOfb(), requireModeEcb(), requirePadAnsix923(), requirePadIso10126(), requirePadIso97971(), requirePadZeropadding(), requirePadNopadding(), requireFormatHex(), requireAes(), requireTripledes(), requireRc4(), requireRabbit(), requireRabbitLegacy());
     }
-  })(commonjsGlobal, function(CryptoJS2) {
-    return CryptoJS2;
+  })(commonjsGlobal, function(CryptoJS) {
+    return CryptoJS;
   });
 })(cryptoJs);
-const CryptoJS = cryptoJs.exports;
-const version = "3.7.3";
+const version = "3.7.5";
 const VERSION = version;
 const _hasatob = typeof atob === "function";
 const _hasbtoa = typeof btoa === "function";
@@ -6803,7 +8335,7 @@ const b64tab = ((a) => {
 })(b64chs);
 const b64re = /^(?:[A-Za-z\d+\/]{4})*?(?:[A-Za-z\d+\/]{2}(?:==)?|[A-Za-z\d+\/]{3}=?)?$/;
 const _fromCC = String.fromCharCode.bind(String);
-const _U8Afrom = typeof Uint8Array.from === "function" ? Uint8Array.from.bind(Uint8Array) : (it, fn = (x) => x) => new Uint8Array(Array.prototype.slice.call(it, 0).map(fn));
+const _U8Afrom = typeof Uint8Array.from === "function" ? Uint8Array.from.bind(Uint8Array) : (it) => new Uint8Array(Array.prototype.slice.call(it, 0));
 const _mkUriSafe = (src) => src.replace(/=/g, "").replace(/[+\/]/g, (m0) => m0 == "+" ? "-" : "_");
 const _tidyB64 = (s) => s.replace(/[^A-Za-z0-9\+\/]/g, "");
 const btoaPolyfill = (bin) => {
@@ -6867,7 +8399,7 @@ const atobPolyfill = (asc) => {
   return bin;
 };
 const _atob = _hasatob ? (asc) => atob(_tidyB64(asc)) : _hasBuffer ? (asc) => Buffer.from(asc, "base64").toString("binary") : atobPolyfill;
-const _toUint8Array = _hasBuffer ? (a) => _U8Afrom(Buffer.from(a, "base64")) : (a) => _U8Afrom(_atob(a), (c) => c.charCodeAt(0));
+const _toUint8Array = _hasBuffer ? (a) => _U8Afrom(Buffer.from(a, "base64")) : (a) => _U8Afrom(_atob(a).split("").map((c) => c.charCodeAt(0)));
 const toUint8Array = (a) => _toUint8Array(_unURI(a));
 const _decode = _hasBuffer ? (a) => Buffer.from(a, "base64").toString("utf8") : _TD ? (a) => _TD.decode(_toUint8Array(a)) : (a) => btou(_atob(a));
 const _unURI = (a) => _tidyB64(a.replace(/[-_]/g, (m0) => m0 == "-" ? "+" : "/"));
@@ -7025,7 +8557,7 @@ class WshopUtils {
     return Md5.hashStr(str).toString();
   }
   sha256(str) {
-    return CryptoJS.SHA256(str).toString();
+    return cryptoJsExports.SHA256(str).toString();
   }
   formDataToObject(formId) {
     const form = document.getElementById(formId);
