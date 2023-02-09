@@ -9,7 +9,7 @@
   },
   "source": "src/index.ts",
   "license": "MIT",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "packageManager": "yarn@1.22.19",
   "module": "dist/index.mjs.js",
   "unpkg": "dist/index.iife.js",
