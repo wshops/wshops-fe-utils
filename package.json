@@ -7,9 +7,9 @@
   "repository": {
     "url": "https://github.com/wshops/wshops-fe-utils.git"
   },
+  "source": "src/index.ts",
   "license": "MIT",
-  "version": "1.0.10",
-  "type": "module",
+  "version": "1.0.12",
   "packageManager": "yarn@1.22.19",
   "module": "dist/index.mjs.js",
   "unpkg": "dist/index.iife.js",
@@ -21,12 +21,6 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"
-  },
-  "exports": {
-    ".": {
-      "require": "./dist/wshop.cjs",
-      "import": "./dist/wshop.mjs"
-    }
   },
   "browserslist": [
     "> 1%",
