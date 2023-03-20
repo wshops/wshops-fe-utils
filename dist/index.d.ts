@@ -364,6 +364,7 @@ export default class WshopUtils {
 	base64Encode(str: string): string;
 	base64Decode(str: string): string;
 	dsync(): Dsync;
+	newFormValidation(withAsync?: boolean): Validation;
 }
 
 declare module '@wshops/utils'

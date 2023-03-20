@@ -113,6 +113,11 @@ export default class WshopUtils {
   public dsync (): Dsync {
     return this._dsync
   }
+
+  public newFormValidation (withAsync?: boolean): Validation {
+    return withAsync === undefined || withAsync ? new Validation(this._config.feedbacks!.formValidationFeedbacks!).withAsync() : new Validation(this._config.feedbacks!.formValidationFeedbacks!).noAsync()
+  }
+
 }
 
 window.$wshop = new WshopUtils()

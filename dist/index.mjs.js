@@ -1,6 +1,6 @@
 /**
  * name: wshops-fe-utils
- * version: v1.0.12
+ * version: v1.0.13
  * description: Wshops app frontend development toolkit
  * author: Tony An <anxuanzi@w-shops.com>
  * homepage: https://www.w-shops.com/
@@ -671,7 +671,8 @@ const transitionalDefaults = {
   clarifyTimeoutError: false
 };
 const URLSearchParams$1 = typeof URLSearchParams !== "undefined" ? URLSearchParams : AxiosURLSearchParams;
-const FormData$1 = FormData;
+const FormData$1 = typeof FormData !== "undefined" ? FormData : null;
+const Blob$1 = typeof Blob !== "undefined" ? Blob : null;
 const isStandardBrowserEnv = (() => {
   let product;
   if (typeof navigator !== "undefined" && ((product = navigator.product) === "ReactNative" || product === "NativeScript" || product === "NS")) {
@@ -688,7 +689,7 @@ const platform = {
   classes: {
     URLSearchParams: URLSearchParams$1,
     FormData: FormData$1,
-    Blob
+    Blob: Blob$1
   },
   isStandardBrowserEnv,
   isStandardBrowserWebWorkerEnv,
@@ -931,9 +932,12 @@ function parseTokens(str) {
 function isValidHeaderName(str) {
   return /^[-_a-zA-Z]+$/.test(str.trim());
 }
-function matchHeaderValue(context, value, header, filter2) {
+function matchHeaderValue(context, value, header, filter2, isHeaderNameFilter) {
   if (utils.isFunction(filter2)) {
     return filter2.call(this, value, header);
+  }
+  if (isHeaderNameFilter) {
+    value = header;
   }
   if (!utils.isString(value))
     return;
@@ -1042,7 +1046,7 @@ class AxiosHeaders {
     let deleted = false;
     while (i--) {
       const key = keys[i];
-      if (!matcher || matchHeaderValue(this, this[key], key, matcher)) {
+      if (!matcher || matchHeaderValue(this, this[key], key, matcher, true)) {
         delete this[key];
         deleted = true;
       }
@@ -1605,7 +1609,7 @@ function mergeConfig(config1, config2) {
   });
   return config;
 }
-const VERSION$1 = "1.3.2";
+const VERSION$1 = "1.3.4";
 const validators$1 = {};
 ["object", "boolean", "number", "function", "string", "symbol"].forEach((type, i) => {
   validators$1[type] = function validator2(thing) {
@@ -8576,6 +8580,9 @@ class WshopUtils {
   }
   dsync() {
     return this._dsync;
+  }
+  newFormValidation(withAsync) {
+    return withAsync === void 0 || withAsync ? new Validation(this._config.feedbacks.formValidationFeedbacks).withAsync() : new Validation(this._config.feedbacks.formValidationFeedbacks).noAsync();
   }
 }
 window.$wshop = new WshopUtils();
